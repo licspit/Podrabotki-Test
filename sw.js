@@ -1,100 +1,65 @@
-/* sw.js – PayCalc v4 (offline + автообновление) */
-const VERSION = 'v4-autoavg-1';
-const STATIC_CACHE = `paycalc-static-${VERSION}`;
-const RUNTIME_CACHE = `paycalc-runtime-${VERSION}`;
+// sw.js  — network-first для index.html, мягкий кеш для остального
+const CACHE = 'paycalc-v3-' + (self.registration ? self.registration.scope : Date.now());
 
-/** Список предкеша. Добавь сюда свои иконки/manifest, если есть. */
-const PRECACHE_URLS = [
-  './',            // корень для PWA (офлайн открытие)
-  './index.html',  // главный HTML
-  './favicon.ico', // опционально, если есть
-];
+// помогай сразу активироваться
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  // необязательно заранее кешировать — пусть подхватывается по ходу
+  e.waitUntil(caches.open(CACHE));
+});
 
-/** Хелперы */
-function isHTML(request) {
-  const url = new URL(request.url);
-  return request.mode === 'navigate' ||
-         (request.headers.get('accept') || '').includes('text/html') ||
-         url.pathname.endsWith('/') ||
-         url.pathname.endsWith('.html');
+self.addEventListener('activate', e => {
+  e.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter(n => n !== CACHE).map(n => caches.delete(n)));
+    await self.clients.claim();
+  })());
+});
+
+// утилита: сетка с подстраховкой кэшем
+async function networkFirst(req) {
+  try {
+    const net = await fetch(req, { cache: 'no-store' });
+    const cache = await caches.open(CACHE);
+    cache.put(req, net.clone());
+    return net;
+  } catch (_) {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    throw _;
+  }
 }
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
-  );
-});
+async function staleWhileRevalidate(req) {
+  const cache = await caches.open(CACHE);
+  const cached = await caches.match(req);
+  const fetchPromise = fetch(req).then(res => {
+    cache.put(req, res.clone());
+    return res;
+  }).catch(() => cached);
+  return cached || fetchPromise;
+}
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    (async () => {
-      // Чистим старые кэши
-      const keys = await caches.keys();
-      await Promise.all(
-        keys
-          .filter((k) => k.startsWith('paycalc-') && ![STATIC_CACHE, RUNTIME_CACHE].includes(k))
-          .map((k) => caches.delete(k))
-      );
-      await self.clients.claim();
-    })()
-  );
-});
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
 
-/**
- * Стратегии:
- * - HTML (index.html и навигация): Network-first → fallback на кеш → fallback на предкеш.
- * - Остальные запросы (CSS/JS/шрифты/изображения): Stale-while-revalidate из RUNTIME_CACHE.
- */
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
+  // Область действия только для твоего сайта
+  // (не перехватываем чужие запросы, аналитики и т.п.)
+  const sameOrigin = url.origin === location.origin;
 
-  // Игнорируем cross-origin без CORS и POST/PUT и т.п.
-  if (request.method !== 'GET') return;
+  if (!sameOrigin) return; // пропускаем сторонние
 
-  if (isHTML(request)) {
-    // Network-first для HTML, чтобы обновления подтягивались
-    event.respondWith(
-      (async () => {
-        try {
-          const fresh = await fetch(request, { cache: 'no-store' });
-          const cache = await caches.open(STATIC_CACHE);
-          cache.put('./index.html', fresh.clone());
-          return fresh;
-        } catch {
-          // Нет сети — пробуем кеш
-          const cached = await caches.match('./index.html') || await caches.match(request);
-          return cached || new Response('<h1>Offline</h1>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-        }
-      })()
-    );
+  // index.html и корень — всегда пробуем сеть сначала
+  if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
-  // Stale-while-revalidate для статики
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(RUNTIME_CACHE);
-      const cached = await cache.match(request);
-      const fetchPromise = fetch(request)
-        .then((resp) => {
-          // Только успешные ответы кладём в кеш
-          if (resp && resp.status === 200 && resp.type === 'basic') {
-            cache.put(request, resp.clone());
-          }
-          return resp;
-        })
-        .catch(() => null);
-
-      return cached || fetchPromise || new Response('', { status: 504 });
-    })()
-  );
+  // Остальное — S-W-R
+  event.respondWith(staleWhileRevalidate(event.request));
 });
 
-/** Приём команды на немедленную активацию новой версии */
-self.addEventListener('message', (event) => {
-  const data = event.data || {};
-  if (data.action === 'skipWaiting' && self.skipWaiting) {
-    self.skipWaiting();
-  }
+// Позволяем странице ускорять обновление SW
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
