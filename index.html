@@ -228,7 +228,7 @@ function refreshSettingsUI(){
   document.getElementById('salary').value = settings.salary;
   document.getElementById('workdays').value = settings.workdays;
   document.getElementById('hoursPerDay').value = settings.hoursPerDay;
-  document.getElementById('avgDaily').value = settings.avgDaily??'';
+  document.getElementById('avgDaily').value = settings.avgDaily==null?'':settings.avgDaily;
   document.getElementById('rateWdFirst2').value = settings.rateWdFirst2;
   document.getElementById('rateWdNext').value = settings.rateWdNext;
   document.getElementById('rateSat').value = settings.rateSat;
@@ -241,7 +241,8 @@ document.getElementById('saveSettings').onclick=()=>{
   settings.salary = +document.getElementById('salary').value || 0;
   settings.workdays = +document.getElementById('workdays').value || 0;
   settings.hoursPerDay = +document.getElementById('hoursPerDay').value || 0;
-  const a = document.getElementById('avgDaily').value.trim();
+  var a = document.getElementById('avgDaily').value;
+  a = (a||'').trim();
   settings.avgDaily = a===''? null : (+a.replace(',','.')||null);
   settings.rateWdFirst2 = +document.getElementById('rateWdFirst2').value || 1.5;
   settings.rateWdNext   = +document.getElementById('rateWdNext').value   || 2;
@@ -265,20 +266,21 @@ document.getElementById('btnToday').onclick=()=>{
 };
 
 document.getElementById('btnAdd').onclick=()=>{
-  const h = Number((document.getElementById('hours').value||'').replace(',','.'))||0;
+  var raw=document.getElementById('hours').value||'';
+  const h = Number(raw.replace(',','.'))||0;
   if(h<=0) return;
   addOrUpdateWork(state.selectedDate,h);
   document.getElementById('hours').value='';
   renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month);
 };
-document.getElementById('quick').onclick=(ev)=>{
+document.getElementById('quick').onclick=function(ev){
   const b=ev.target.closest('button[data-qk]'); if(!b) return;
   const code=b.dataset.qk;
   if(code==='hrs-3.5') addOrUpdateWork(state.selectedDate,3.5);
   if(code==='hrs-8') addOrUpdateWork(state.selectedDate,8);
   if(code==='leave-hours'){
-    const raw = prompt('Отгул (часы):','0.5'); if(!raw) return;
-    const n = Number(raw.replace(',','.'))||0;
+    const r = prompt('Отгул (часы):','0.5');
+    const n = Number((r||'').replace(',','.'))||0;
     if(n>0) addOffHours(state.selectedDate,n);
   }
   if(code==='vacation') toggleVacation(state.selectedDate);
@@ -286,7 +288,6 @@ document.getElementById('quick').onclick=(ev)=>{
 };
 
 /* ================== ENTRIES OPS ================== */
-/* entry: { id, date:'YYYY-MM-DD', kind:'work'|'offHours'|'vacation', hours:number } */
 function addOrUpdateWork(dateISO,hours){
   const list=loadEntries();
   const i=list.findIndex(e=>e.date===dateISO && e.kind==='work');
@@ -318,7 +319,7 @@ function renderCalendar(y,m){
   document.getElementById('cal-title').textContent =
     new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   document.getElementById('cal-dow').innerHTML =
-    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
+    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(function(d){return '<span>'+d+'</span>'}).join('');
   const grid=document.getElementById('cal-grid'); grid.innerHTML='';
   const first=new Date(y,m,1);
   const startCol=(first.getDay()+6)%7; // Пн=0
@@ -330,23 +331,23 @@ function renderCalendar(y,m){
     const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d);
   }
   for(let day=1; day<=n; day++){
-    const dateISO=`${y}-${pad2(m+1)}-${pad2(day)}`;
+    const dateISO=y+'-'+pad2(m+1)+'-'+pad2(day);
     const hasWork=entries.some(e=>e.date===dateISO && e.kind==='work');
     const hasOff =entries.some(e=>e.date===dateISO && e.kind==='offHours');
     const hasVac =entries.some(e=>e.date===dateISO && e.kind==='vacation');
-    const isHol  =hol.includes(day);
+    const isHol  =hol.indexOf(day)>-1;
     const badge=(hasWork?'🛠️':'')+(hasOff?' ⛔':'')+(hasVac?' 🏖️':'')+(isHol?' 🎉':'');
 
     const btn=document.createElement('button');
     btn.className='cal-day';
     if(dateISO===state.selectedDate) btn.classList.add('selected');
-    btn.innerHTML=`<span class="num">${day}</span><div class="badge">${badge}</div>`;
-    btn.onclick=()=>{ state.selectedDate=dateISO; setTodayUi(); renderCalendar(y,m); renderDayDetails(dateISO); };
+    btn.innerHTML='<span class="num">'+day+'</span><div class="badge">'+badge+'</div>';
+    btn.onclick=function(){ state.selectedDate=dateISO; setTodayUi(); renderCalendar(y,m); renderDayDetails(dateISO); };
     grid.appendChild(btn);
   }
 }
-document.getElementById('prevM').onclick=()=>{ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month) }
-document.getElementById('nextM').onclick=()=>{ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month) }
+document.getElementById('prevM').onclick=function(){ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month) }
+document.getElementById('nextM').onclick=function(){ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month) }
 
 /* ================== HOLIDAYS PAGE ================== */
 let hYear=state.year, hMonth=state.month;
@@ -354,7 +355,7 @@ function renderHolidaysCalendar(y,m){
   document.getElementById('h-title').textContent =
     new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   document.getElementById('h-dow').innerHTML =
-    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
+    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(function(d){return '<span>'+d+'</span>'}).join('');
   const grid=document.getElementById('h-grid'); grid.innerHTML='';
   const first=new Date(y,m,1);
   const startCol=(first.getDay()+6)%7, n=daysInMonth(y,m);
@@ -364,13 +365,13 @@ function renderHolidaysCalendar(y,m){
   for(let i=0;i<startCol;i++){ const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d); }
   for(let day=1; day<=n; day++){
     const btn=document.createElement('button'); btn.className='cal-day';
-    const isHol=arr.includes(day);
-    btn.innerHTML=`<span class="num">${day}</span><div class="badge">${isHol?'🎉':''}</div>`;
-    btn.onclick=()=>{
+    const isHol=arr.indexOf(day)>-1;
+    btn.innerHTML='<span class="num">'+day+'</span><div class="badge">'+(isHol?'🎉':'')+'</div>';
+    btn.onclick=function(){
       const list=holidaysMap[key]||[];
       const i=list.indexOf(day);
       if(i>-1) list.splice(i,1); else list.push(day);
-      holidaysMap[key]=list.sort((a,b)=>a-b);
+      holidaysMap[key]=list.sort(function(a,b){return a-b});
       saveJSON(LS_KEYS.holidays, holidaysMap);
       renderHolidaysCalendar(y,m);
       if(y===state.year && m===state.month) renderCalendar(state.year,state.month);
@@ -378,8 +379,8 @@ function renderHolidaysCalendar(y,m){
     grid.appendChild(btn);
   }
 }
-document.getElementById('hPrev').onclick=()=>{ hMonth--; if(hMonth<0){hMonth=11;hYear--} renderHolidaysCalendar(hYear,hMonth) }
-document.getElementById('hNext').onclick=()=>{ hMonth++; if(hMonth>11){hMonth=0;hYear++} renderHolidaysCalendar(hYear,hMonth) }
+document.getElementById('hPrev').onclick=function(){ hMonth--; if(hMonth<0){hMonth=11;hYear--} renderHolidaysCalendar(hYear,hMonth) }
+document.getElementById('hNext').onclick=function(){ hMonth++; if(hMonth>11){hMonth=0;hYear++} renderHolidaysCalendar(hYear,hMonth) }
 
 /* ================== CALC HELPERS ================== */
 function currentHourRate(){
@@ -391,7 +392,8 @@ function currentHourRate(){
 function isHoliday(dateISO){
   const d=new Date(dateISO);
   const key=ymStr(d.getFullYear(), d.getMonth());
-  return (holidaysMap[key]||[]).includes(d.getDate());
+  const arr = holidaysMap[key]||[];
+  return arr.indexOf(d.getDate())>-1;
 }
 function isWeekday(dateISO){
   const day = new Date(dateISO).getDay(); // 0=Sun..6=Sat
@@ -406,13 +408,12 @@ function calcOvertimePay(dateISO,hours,baseRate){
   if(isHoliday(dateISO)) return hours*baseRate*settings.rateHol;
   if(isSaturday(dateISO)) return hours*baseRate*settings.rateSat;
   if(isSunday(dateISO))   return hours*baseRate*settings.rateSun;
-  // Будни: первые 2 часа одним коэф., дальше — другим
   const first = Math.min(hours,2)*settings.rateWdFirst2;
   const rest  = Math.max(0,hours-2)*settings.rateWdNext;
   return baseRate*(first+rest);
 }
 
-/* вычитание отгула: только будний не-праздничный день */
+/* вычитание отгула */
 function calcOffPenalty(dateISO,hours,baseRate){
   if(hours<=0) return 0;
   if(!isHoliday(dateISO) && isWeekday(dateISO)) return hours*baseRate;
@@ -422,12 +423,11 @@ function calcOffPenalty(dateISO,hours,baseRate){
 /* начисления месяца: оклад + подработки (для среднего) */
 function monthAccruals(y,m){
   const ym = ymStr(y,m);
-  const list = loadEntries().filter(e=>e.date.startsWith(ym));
+  const list = loadEntries().filter(function(e){return e.date.slice(0,7)===ym});
   const baseRate = currentHourRate();
-  let pay = +settings.salary || 0; // минимум: оклад
-  list.forEach(e=>{
+  var pay = +settings.salary || 0;
+  list.forEach(function(e){
     if(e.kind==='work') pay += calcOvertimePay(e.date, +e.hours||0, baseRate);
-    // отгулы и отпуск не увеличивают начисления для среднего
   });
   return pay;
 }
@@ -435,8 +435,8 @@ function monthAccruals(y,m){
 /* среднедневной: за 12 предшествующих месяцев; пустые — оклад */
 function autoAverageDaily(){
   const anchor = new Date(state.year, state.month, 1);
-  let sum = 0;
-  for(let i=1;i<=12;i++){
+  var sum = 0;
+  for(var i=1;i<=12;i++){
     const d=new Date(anchor); d.setMonth(anchor.getMonth()-i);
     sum += monthAccruals(d.getFullYear(), d.getMonth());
   }
@@ -450,11 +450,11 @@ function avgDaily(){
 /* итоги по месяцу выбранной даты */
 function calcTotals(dateISO){
   const ym=dateISO.slice(0,7);
-  const list=loadEntries().filter(e=>e.date.startsWith(ym));
+  const list=loadEntries().filter(function(e){return e.date.slice(0,7)===ym});
   const baseRate=currentHourRate();
-  let workH=0, offH=0, vacD=0, otPay=0, offPenalty=0;
+  var workH=0, offH=0, vacD=0, otPay=0, offPenalty=0;
 
-  list.forEach(e=>{
+  list.forEach(function(e){
     if(e.kind==='work'){
       const h=+e.hours||0;
       workH+=h;
@@ -477,57 +477,58 @@ function calcTotals(dateISO){
 
 /* ================== DAY LIST & TOTALS RENDER ================== */
 function bindDeleteButtons(){
-  document.querySelectorAll('[data-del-id]').forEach(b=>{
-    b.onclick=()=>{ deleteEntryById(b.dataset.delId); renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month); };
-  });
+  var nodes=document.querySelectorAll('[data-del-id]');
+  for(var i=0;i<nodes.length;i++){
+    nodes[i].onclick=function(){ deleteEntryById(this.dataset.delId); renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month); };
+  }
 }
 function renderDayDetails(dateISO){
   const box=document.getElementById('day-list');
-  const list=loadEntries().filter(e=>e.date===dateISO);
+  const list=loadEntries().filter(function(e){return e.date===dateISO});
   const label=new Date(dateISO).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-  let html=`<h3 style="margin:6px 0 10px">${label}</h3>`;
+  var html='<h3 style="margin:6px 0 10px">'+label+'</h3>';
   if(list.length===0){
-    html+=`<div class="mut">Записей нет.</div>`;
+    html+='<div class="mut">Записей нет.</div>';
   }else{
-    html+=list.map(e=>{
+    html+=list.map(function(e){
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
       const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул':'Отпуск');
       const hrs  = e.kind==='vacation'?'—':(+e.hours||0).toFixed(2);
-      return `<div class="rowline">
-        <div><span class="pill">${icon}</span> ${title}</div>
-        <div style="text-align:right">${hrs}</div>
-        <div></div>
-        <div style="text-align:right"><button class="btn danger" data-del-id="${e.id}">Удалить</button></div>
-      </div>`;
+      return '<div class="rowline">'+
+        '<div><span class="pill">'+icon+'</span> '+title+'</div>'+
+        '<div style="text-align:right">'+hrs+'</div>'+
+        '<div></div>'+
+        '<div style="text-align:right"><button class="btn danger" data-del-id="'+e.id+'">Удалить</button></div>'+
+      '</div>';
     }).join('');
   }
   box.innerHTML=html;
   bindDeleteButtons();
 
   const t=calcTotals(dateISO);
-  document.getElementById('totals').innerHTML = `
-    <span class="pill">База: ${t.base.toLocaleString('ru-RU')} ₽</span>
-    <span class="pill">Почасовая: ${t.rate.toFixed(0)} ₽/ч</span>
-    <span class="pill">Подработки: ${t.otPay.toLocaleString('ru-RU')} ₽ (часы: ${t.workH.toFixed(2)})</span>
-    <span class="pill">Отгул: −${t.offPenalty.toLocaleString('ru-RU')} ₽ (часы: ${t.offH.toFixed(2)})</span>
-    <span class="pill">Отпуск: ${t.leavePay.toLocaleString('ru-RU')} ₽ (дн.: ${t.vacD})</span>
-    <span class="pill" style="font-weight:700">Итого: ${t.total.toLocaleString('ru-RU')} ₽</span>
-  `;
+  document.getElementById('totals').innerHTML =
+    '<span class="pill">База: '+t.base.toLocaleString('ru-RU')+' ₽</span>'+
+    '<span class="pill">Почасовая: '+t.rate.toFixed(0)+' ₽/ч</span>'+
+    '<span class="pill">Подработки: '+t.otPay.toLocaleString('ru-RU')+' ₽ (часы: '+t.workH.toFixed(2)+')</span>'+
+    '<span class="pill">Отгул: −'+t.offPenalty.toLocaleString('ru-RU')+' ₽ (часы: '+t.offH.toFixed(2)+')</span>'+
+    '<span class="pill">Отпуск: '+t.leavePay.toLocaleString('ru-RU')+' ₽ (дн.: '+t.vacD+')</span>'+
+    '<span class="pill" style="font-weight:700">Итого: '+t.total.toLocaleString('ru-RU')+' ₽</span>';
 }
 
 /* ================== IMPORT / EXPORT ================== */
-document.getElementById('btnExport').onclick=()=>{
+document.getElementById('btnExport').onclick=function(){
   const payload={ entries:loadEntries(), holidays:holidaysMap, settings };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='paycalc_data.json'; a.click();
   URL.revokeObjectURL(a.href);
 };
-document.getElementById('btnImport').onclick=()=>{
-  const f=document.getElementById('file').files?.[0];
+document.getElementById('btnImport').onclick=function(){
+  var files=document.getElementById('file').files;
+  var f = files && files[0];
   if(!f) return alert('Выберите файл JSON');
   const r=new FileReader();
-  r.onload=()=>{
+  r.onload=function(){
     try{
       const data=JSON.parse(r.result);
       saveEntries(Array.isArray(data.entries)?data.entries:[]);
@@ -546,17 +547,10 @@ document.getElementById('btnImport').onclick=()=>{
 };
 
 /* ================== INIT ================== */
-function setTodayUi(){ document.getElementById('dt').value=new Date(state.selectedDate).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); }
 setTodayUi();
-
-/* Journal calendar */
 renderCalendar(state.year,state.month);
-
-/* Holidays page init */
 let hYear=state.year, hMonth=state.month;
 renderHolidaysCalendar(hYear,hMonth);
-
-/* Day details */
 renderDayDetails(state.selectedDate);
 </script>
 </body>
