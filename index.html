@@ -135,8 +135,8 @@
         </div>
         <div class="row mtt">
           <div class="grow">
-            <div class="mut">Среднедневной (для отпуска), ₽</div>
-            <input id="avgDaily" inputmode="decimal" placeholder="если пусто — оклад/29.3">
+            <div class="mut">Среднедневной (для отпуска), ₽ — необязательное поле</div>
+            <input id="avgDaily" inputmode="decimal" placeholder="если пусто — считаем автоматически за 12 мес.">
           </div>
         </div>
         <div class="row mt-12">
@@ -175,13 +175,12 @@
 <script>
 /* ================== STATE & STORAGE ================== */
 function ymd(d){return d.toISOString().slice(0,10)}
+function pad2(n){return String(n).padStart(2,'0')}
+function ymStr(y,m){return `${y}-${pad2(m+1)}`}
+
 function makeId(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
 
-const LS_KEYS = {
-  entries:'entries',
-  holidays:'holidays',
-  settings:'settings'
-};
+const LS_KEYS = { entries:'entries', holidays:'holidays', settings:'settings' };
 
 function loadEntries(){try{return JSON.parse(localStorage.getItem(LS_KEYS.entries)||'[]')}catch(e){return[]}}
 function saveEntries(a){localStorage.setItem(LS_KEYS.entries,JSON.stringify(a))}
@@ -199,7 +198,7 @@ const today = new Date();
 const state = {
   year: today.getFullYear(),
   month: today.getMonth(),
-  get ym(){return `${this.year}-${String(this.month+1).padStart(2,'0')}`},
+  get ym(){return ymStr(this.year,this.month)},
   selectedDate: ymd(today),
   holidays: loadHolidays()
 };
@@ -283,7 +282,7 @@ document.getElementById('quick').onclick=(ev)=>{
   if(code==='hrs-3.5') addOrUpdateWork(state.selectedDate,3.5);
   if(code==='hrs-8') addOrUpdateWork(state.selectedDate,8);
   if(code==='leave-hours'){
-    const n = Number(prompt('Отгул (часы):','0.5').replace(',','.'))||0;
+    const n = Number((prompt('Отгул (часы):','0.5')||'').replace(',','.'))||0;
     if(n>0) addOffHours(state.selectedDate,n);
   }
   if(code==='vacation') toggleVacation(state.selectedDate);
@@ -304,13 +303,13 @@ function renderCalendar(y,m){
   const startCol=(first.getDay()+6)%7; // Пн=0
   const n=daysInMonth(y,m);
   const entries=loadEntries();
-  const hol = state.holidays[state.ym] || [];
+  const hol = state.holidays[ymStr(y,m)] || [];
 
   for(let i=0;i<startCol;i++){
     const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d);
   }
   for(let day=1; day<=n; day++){
-    const dateISO=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dateISO=`${y}-${pad2(m+1)}-${pad2(day)}`;
     const hasWork=entries.some(e=>e.date===dateISO && e.kind==='work');
     const hasLeave=entries.some(e=>e.date===dateISO && e.kind==='offHours');
     const hasVac=entries.some(e=>e.date===dateISO && e.kind==='vacation');
@@ -342,25 +341,48 @@ function currentHourRate(){
   const sal= Number(settings.salary||0);
   return wd*hpd>0 ? sal/(wd*hpd) : 0;
 }
+
+/* ---- НОВОЕ: официальный среднедневной ---- */
+/* Сумма начислений за месяц = оклад + оплата подработок этого месяца (по текущей логике: ставка/ч × часы) */
+function monthAccruals(y,m){
+  const ym = ymStr(y,m);
+  const list = loadEntries().filter(e=>e.date.slice(0,7)===ym);
+  const rate = currentHourRate();
+  let workH = 0;
+  list.forEach(e=>{ if(e.kind==='work') workH += Number(e.hours||0); });
+  const overtimePay = workH * rate;
+  // Если записей нет — всё равно учитываем оклад за месяц
+  return Number(settings.salary||0) + overtimePay;
+}
+/* 12 месяцев, предшествующих текущему (выбранному) месяцу */
+function autoAverageDaily(){
+  const anchor = new Date(state.year, state.month, 1);
+  let sum = 0;
+  for(let i=1;i<=12;i++){
+    const d = new Date(anchor); d.setMonth(anchor.getMonth()-i);
+    sum += monthAccruals(d.getFullYear(), d.getMonth());
+  }
+  return sum / (29.3 * 12);
+}
 function avgDaily(){
   if(settings.avgDaily!=null) return Number(settings.avgDaily)||0;
-  const sal=Number(settings.salary||0);
-  return sal/29.3; // простая база, можно заменить
+  return autoAverageDaily();
 }
+
 function calcTotals(dateISO){
   const ym=dateISO.slice(0,7);
   const list=loadEntries().filter(e=>e.date.slice(0,7)===ym);
   let workH=0, offH=0, vacD=0;
   list.forEach(e=>{
-    if(e.kind==='work') workH+=e.hours;
-    else if(e.kind==='offHours') offH+=e.hours;
+    if(e.kind==='work') workH+=Number(e.hours||0);
+    else if(e.kind==='offHours') offH+=Number(e.hours||0);
     else if(e.kind==='vacation') vacD+=1;
   });
   const rate=currentHourRate();
-  const payWork=workH*rate; // базово
-  const payVac=vacD*avgDaily();
-  const base = settings.salary; // в этой версии показываем как справочную «база»
-  const total = base + payWork + payVac;
+  const payWork=workH*rate;
+  const payVac=vacD*avgDaily();              // ← теперь автоматом по 12 мес., если не задано вручную
+  const base = settings.salary;              // как и раньше в этой версии — справочная «база»
+  const total = base + payWork + payVac;     // (отгулы в этой версии не вычитаются — логика сохранена)
   return { workH, offH, vacD, rate, payWork, payVac, base, total };
 }
 function renderDayDetails(dateISO){
@@ -374,7 +396,7 @@ function renderDayDetails(dateISO){
     html+=list.map(e=>{
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
       const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул (часы)':'Отпуск');
-      const hrs  = e.kind==='vacation'?'—':e.hours.toFixed(2);
+      const hrs  = e.kind==='vacation'?'—':Number(e.hours||0).toFixed(2);
       return `<div class="rowline">
         <div><span class="pill">${icon}</span> ${title}</div>
         <div style="text-align:right">${hrs}</div>
@@ -407,8 +429,8 @@ function renderHolidaysCalendar(y,m){
   const grid=document.getElementById('h-grid'); grid.innerHTML='';
   const first=new Date(y,m,1);
   const startCol=(first.getDay()+6)%7, n=daysInMonth(y,m);
-  state.holidays[state.ym] = state.holidays[state.ym] || [];
-  const arr = state.holidays[`${y}-${String(m+1).padStart(2,'0')}`] || [];
+  const key = ymStr(y,m);
+  const arr = (state.holidays[key] || []).slice();
 
   for(let i=0;i<startCol;i++){ const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d); }
   for(let day=1; day<=n; day++){
@@ -416,13 +438,12 @@ function renderHolidaysCalendar(y,m){
     const isHol=arr.includes(day);
     btn.innerHTML=`<span class="num">${day}</span><div class="badge">${isHol?'🎉':''}</div>`;
     btn.onclick=()=>{
-      const key=`${y}-${String(m+1).padStart(2,'0')}`;
       const list=state.holidays[key]||[];
       const i=list.indexOf(day);
       if(i>-1) list.splice(i,1); else list.push(day);
       state.holidays[key]=list.sort((a,b)=>a-b);
       saveHolidays(state.holidays);
-      renderHolidaysCalendar(y,m); // refresh
+      renderHolidaysCalendar(y,m);
       if(y===state.year && m===state.month) renderCalendar(state.year,state.month);
     };
     grid.appendChild(btn);
@@ -433,11 +454,7 @@ document.getElementById('hNext').onclick=()=>{ hMonth++; if(hMonth>11){hMonth=0;
 
 /* ================== IMPORT / EXPORT ================== */
 document.getElementById('btnExport').onclick=()=>{
-  const payload = {
-    entries: loadEntries(),
-    holidays: loadHolidays(),
-    settings
-  };
+  const payload = { entries: loadEntries(), holidays: loadHolidays(), settings };
   const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='paycalc_data.json'; a.click();
   URL.revokeObjectURL(a.href);
@@ -462,10 +479,11 @@ document.getElementById('btnImport').onclick=()=>{
 };
 
 /* ================== INIT ================== */
+function renderHolidaysCalendarInit(){renderHolidaysCalendar(hYear,hMonth)}
 setTodayUi();
 renderCalendar(state.year,state.month);
 renderDayDetails(state.selectedDate);
-renderHolidaysCalendar(hYear,hMonth);
+renderHolidaysCalendarInit();
 </script>
 </body>
 </html>
