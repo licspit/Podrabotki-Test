@@ -122,30 +122,22 @@
         <div class="row wrap">
           <div class="grow">
             <div class="mut">Оклад, ₽ (на руки)</div>
-            <input id="salary" inputmode="numeric">
+            <input id="salary" inputmode="numeric" value="97000">
           </div>
           <div class="grow">
-            <div class="mut">Рабочих дней в мес. (Пн–Пт)</div>
-            <input id="workdays" inputmode="numeric">
+            <div class="mut">Рабочих дней в месяце (Пн–Пт)</div>
+            <input id="workdays" inputmode="numeric" value="22">
           </div>
           <div class="grow">
             <div class="mut">Часов в день</div>
-            <input id="hoursPerDay" inputmode="numeric">
+            <input id="hoursPerDay" inputmode="numeric" value="8">
           </div>
         </div>
         <div class="row mtt">
           <div class="grow">
             <div class="mut">Среднедневной (для отпуска), ₽ — необязательное поле</div>
-            <input id="avgDaily" inputmode="decimal" placeholder="если пусто — автоматом за 12 мес.">
+            <input id="avgDaily" inputmode="decimal" placeholder="если пусто — считаем автоматически за 12 мес.">
           </div>
-        </div>
-        <div class="section-title mt-12">Коэффициенты подработок</div>
-        <div class="row wrap">
-          <div class="grow"><div class="mut">Будни (первые 2 ч)</div><input id="rateWdFirst2" inputmode="decimal"></div>
-          <div class="grow"><div class="mut">Будни (дальше)</div><input id="rateWdNext" inputmode="decimal"></div>
-          <div class="grow"><div class="mut">Суббота</div><input id="rateSat" inputmode="decimal"></div>
-          <div class="grow"><div class="mut">Воскресенье</div><input id="rateSun" inputmode="decimal"></div>
-          <div class="grow"><div class="mut">Праздник</div><input id="rateHol" inputmode="decimal"></div>
         </div>
         <div class="row mt-12">
           <button class="btn primary" id="saveSettings">Сохранить настройки</button>
@@ -175,7 +167,7 @@
           <input id="file" type="file" accept="application/json" class="mtt">
           <button class="btn" id="btnImport">Импорт</button>
         </div>
-        <div class="mut mtt">Экспорт включает записи, праздники и настройки.</div>
+        <div class="mut mtt">Экспорт включает записи, праздники и базовые настройки.</div>
       </div>
     </section>
   </div>
@@ -184,24 +176,21 @@
 /* ================== STATE & STORAGE ================== */
 function ymd(d){return d.toISOString().slice(0,10)}
 function pad2(n){return String(n).padStart(2,'0')}
-function ymStr(y,m){return y+'-'+pad2(m+1)}
+function ymStr(y,m){return `${y}-${pad2(m+1)}`}
 function makeId(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
 
-const LS_KEYS={entries:'entries',holidays:'holidays',settings:'settings'}
-function loadJSON(key, fallback){try{return JSON.parse(localStorage.getItem(key)||fallback)}catch(_){return JSON.parse(fallback)}}
-function saveJSON(key, val){localStorage.setItem(key, JSON.stringify(val))}
+const LS_KEYS = { entries:'entries', holidays:'holidays', settings:'settings' };
 
-/* settings */
-const defaultSettings={
-  salary:97000, workdays:22, hoursPerDay:8, avgDaily:null,
-  rateWdFirst2:1.5, rateWdNext:2, rateSat:1.5, rateSun:2, rateHol:2
-};
-const settings = Object.assign({}, defaultSettings, loadJSON(LS_KEYS.settings,'{}'));
+function loadEntries(){try{return JSON.parse(localStorage.getItem(LS_KEYS.entries)||'[]')}catch(e){return[]}}
+function saveEntries(a){localStorage.setItem(LS_KEYS.entries,JSON.stringify(a))}
+function loadHolidays(){try{return JSON.parse(localStorage.getItem(LS_KEYS.holidays)||'{}')}catch(e){return{}}}
+function saveHolidays(m){localStorage.setItem(LS_KEYS.holidays,JSON.stringify(m))}
+function loadSettings(){try{return JSON.parse(localStorage.getItem(LS_KEYS.settings)||'{}')}catch(e){return{}}}
+function saveSettingsObj(o){localStorage.setItem(LS_KEYS.settings,JSON.stringify(o))}
 
-/* entries & holidays */
-function loadEntries(){return loadJSON(LS_KEYS.entries,'[]')}
-function saveEntries(a){saveJSON(LS_KEYS.entries,a)}
-const holidaysMap = loadJSON(LS_KEYS.holidays,'{}');
+/* default settings */
+const defaultSettings = { salary:97000, workdays:22, hoursPerDay:8, avgDaily:null };
+const settings = Object.assign({}, defaultSettings, loadSettings());
 
 /* selected date / month */
 const today = new Date();
@@ -209,7 +198,8 @@ const state = {
   year: today.getFullYear(),
   month: today.getMonth(),
   get ym(){return ymStr(this.year,this.month)},
-  selectedDate: ymd(today)
+  selectedDate: ymd(today),
+  holidays: loadHolidays()
 };
 
 /* ================== TABS ================== */
@@ -220,324 +210,265 @@ tabBtns.forEach(b=>b.onclick=()=>{
   tabPages.forEach(s=>s.hidden=true);
   b.classList.add('active');
   document.getElementById(b.dataset.tab).hidden=false;
-  if(b.dataset.tab==='holidays') renderHolidaysCalendar(hYear,hMonth);
+  if(b.dataset.tab==='holidays'){renderHolidaysCalendar(hYear,hMonth)}
 });
 
-/* ================== SETTINGS UI ================== */
-function refreshSettingsUI(){
-  document.getElementById('salary').value = settings.salary;
-  document.getElementById('workdays').value = settings.workdays;
-  document.getElementById('hoursPerDay').value = settings.hoursPerDay;
-  document.getElementById('avgDaily').value = settings.avgDaily==null?'':settings.avgDaily;
-  document.getElementById('rateWdFirst2').value = settings.rateWdFirst2;
-  document.getElementById('rateWdNext').value = settings.rateWdNext;
-  document.getElementById('rateSat').value = settings.rateSat;
-  document.getElementById('rateSun').value = settings.rateSun;
-  document.getElementById('rateHol').value = settings.rateHol;
-}
-refreshSettingsUI();
-
-document.getElementById('saveSettings').onclick=()=>{
-  settings.salary = +document.getElementById('salary').value || 0;
-  settings.workdays = +document.getElementById('workdays').value || 0;
-  settings.hoursPerDay = +document.getElementById('hoursPerDay').value || 0;
-  var a = document.getElementById('avgDaily').value;
-  a = (a||'').trim();
-  settings.avgDaily = a===''? null : (+a.replace(',','.')||null);
-  settings.rateWdFirst2 = +document.getElementById('rateWdFirst2').value || 1.5;
-  settings.rateWdNext   = +document.getElementById('rateWdNext').value   || 2;
-  settings.rateSat      = +document.getElementById('rateSat').value      || 1.5;
-  settings.rateSun      = +document.getElementById('rateSun').value      || 2;
-  settings.rateHol      = +document.getElementById('rateHol').value      || 2;
-  saveJSON(LS_KEYS.settings, settings);
-  alert('Сохранено');
-  renderDayDetails(state.selectedDate);
-};
-
-/* ================== JOURNAL INPUTS ================== */
 function setTodayUi(){
   document.getElementById('dt').value = new Date(state.selectedDate)
     .toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
 }
 document.getElementById('btnToday').onclick=()=>{
-  const t=new Date();
+  const t = new Date();
   state.year=t.getFullYear(); state.month=t.getMonth(); state.selectedDate=ymd(t);
   setTodayUi(); renderCalendar(state.year,state.month); renderDayDetails(state.selectedDate);
 };
 
-document.getElementById('btnAdd').onclick=()=>{
-  var raw=document.getElementById('hours').value||'';
-  const h = Number(raw.replace(',','.'))||0;
-  if(h<=0) return;
-  addOrUpdateWork(state.selectedDate,h);
-  document.getElementById('hours').value='';
-  renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month);
-};
-document.getElementById('quick').onclick=function(ev){
-  const b=ev.target.closest('button[data-qk]'); if(!b) return;
-  const code=b.dataset.qk;
-  if(code==='hrs-3.5') addOrUpdateWork(state.selectedDate,3.5);
-  if(code==='hrs-8') addOrUpdateWork(state.selectedDate,8);
-  if(code==='leave-hours'){
-    const r = prompt('Отгул (часы):','0.5');
-    const n = Number((r||'').replace(',','.'))||0;
-    if(n>0) addOffHours(state.selectedDate,n);
-  }
-  if(code==='vacation') toggleVacation(state.selectedDate);
-  renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month);
+/* ================== SETTINGS UI ================== */
+document.getElementById('salary').value = settings.salary;
+document.getElementById('workdays').value = settings.workdays;
+document.getElementById('hoursPerDay').value = settings.hoursPerDay;
+document.getElementById('avgDaily').value = settings.avgDaily??'';
+document.getElementById('saveSettings').onclick=()=>{
+  settings.salary=Number(document.getElementById('salary').value||0);
+  settings.workdays=Number(document.getElementById('workdays').value||0);
+  settings.hoursPerDay=Number(document.getElementById('hoursPerDay').value||0);
+  const a = document.getElementById('avgDaily').value.trim();
+  settings.avgDaily = a===''?null:Number(a.replace(',','.'))||null;
+  saveSettingsObj(settings);
+  renderDayDetails(state.selectedDate);
+  alert('Сохранено.');
 };
 
-/* ================== ENTRIES OPS ================== */
-function addOrUpdateWork(dateISO,hours){
+/* ================== ADD / UPDATE / DELETE ================== */
+/* entries: { id, date:'YYYY-MM-DD', kind:'work'|'offHours'|'vacation', hours:number } */
+
+function addOrUpdateWork(dateISO, hours){
   const list=loadEntries();
-  const i=list.findIndex(e=>e.date===dateISO && e.kind==='work');
-  const rec={ id: i>-1?list[i].id:makeId(), date:dateISO, kind:'work', hours:+hours||0 };
-  if(i>-1) list[i]=rec; else list.push(rec);
+  const idx=list.findIndex(e=>e.date===dateISO && e.kind==='work');
+  const rec={ id: idx>-1?list[idx].id:makeId(), date:dateISO, kind:'work', hours:Number(hours)||0 };
+  if(idx>-1){ list[idx]=rec } else { list.push(rec) }
   saveEntries(list);
 }
 function addOffHours(dateISO,hours){
   const list=loadEntries();
-  list.push({ id:makeId(), date:dateISO, kind:'offHours', hours:+hours||0 });
+  list.push({ id:makeId(), date:dateISO, kind:'offHours', hours:Number(hours)||0 });
   saveEntries(list);
 }
 function toggleVacation(dateISO){
   const list=loadEntries();
-  const i=list.findIndex(e=>e.date===dateISO && e.kind==='vacation');
-  if(i>-1) list.splice(i,1);
+  const idx=list.findIndex(e=>e.date===dateISO && e.kind==='vacation');
+  if(idx>-1) list.splice(idx,1);
   else list.push({ id:makeId(), date:dateISO, kind:'vacation', hours:0 });
   saveEntries(list);
 }
 function deleteEntryById(id){
   const list=loadEntries();
   const i=list.findIndex(e=>e.id===id);
-  if(i>-1){ list.splice(i,1); saveEntries(list); }
+  if(i>-1){ list.splice(i,1); saveEntries(list) }
 }
 
+/* inputs */
+document.getElementById('btnAdd').onclick=()=>{
+  const h = Number(document.getElementById('hours').value.replace(',','.'))||0;
+  if(h<=0) return;
+  addOrUpdateWork(state.selectedDate,h);
+  document.getElementById('hours').value='';
+  renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month);
+};
+document.getElementById('quick').onclick=(ev)=>{
+  const b=ev.target.closest('button[data-qk]'); if(!b) return;
+  const code=b.dataset.qk;
+  if(code==='hrs-3.5') addOrUpdateWork(state.selectedDate,3.5);
+  if(code==='hrs-8') addOrUpdateWork(state.selectedDate,8);
+  if(code==='leave-hours'){
+    const n = Number((prompt('Отгул (часы):','0.5')||'').replace(',','.'))||0;
+    if(n>0) addOffHours(state.selectedDate,n);
+  }
+  if(code==='vacation') toggleVacation(state.selectedDate);
+  renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month);
+};
+
 /* ================== CALENDAR (journal) ================== */
-function daysInMonth(y,m){return new Date(y,m+1,0).getDate()}
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate() }
+
 function renderCalendar(y,m){
   document.getElementById('cal-title').textContent =
     new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
   document.getElementById('cal-dow').innerHTML =
-    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(function(d){return '<span>'+d+'</span>'}).join('');
+    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
+
   const grid=document.getElementById('cal-grid'); grid.innerHTML='';
   const first=new Date(y,m,1);
   const startCol=(first.getDay()+6)%7; // Пн=0
   const n=daysInMonth(y,m);
   const entries=loadEntries();
-  const hol = holidaysMap[ymStr(y,m)] || [];
+  const hol = state.holidays[ymStr(y,m)] || [];
 
   for(let i=0;i<startCol;i++){
     const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d);
   }
   for(let day=1; day<=n; day++){
-    const dateISO=y+'-'+pad2(m+1)+'-'+pad2(day);
+    const dateISO=`${y}-${pad2(m+1)}-${pad2(day)}`;
     const hasWork=entries.some(e=>e.date===dateISO && e.kind==='work');
-    const hasOff =entries.some(e=>e.date===dateISO && e.kind==='offHours');
-    const hasVac =entries.some(e=>e.date===dateISO && e.kind==='vacation');
-    const isHol  =hol.indexOf(day)>-1;
-    const badge=(hasWork?'🛠️':'')+(hasOff?' ⛔':'')+(hasVac?' 🏖️':'')+(isHol?' 🎉':'');
+    const hasLeave=entries.some(e=>e.date===dateISO && e.kind==='offHours');
+    const hasVac=entries.some(e=>e.date===dateISO && e.kind==='vacation');
+    const isHol=hol.includes(day);
+    const badge=(hasWork?'🛠️':'')+(hasLeave?' ⛔':'')+(hasVac?' 🏖️':'')+(isHol?' 🎉':'');
 
     const btn=document.createElement('button');
     btn.className='cal-day';
     if(dateISO===state.selectedDate) btn.classList.add('selected');
-    btn.innerHTML='<span class="num">'+day+'</span><div class="badge">'+badge+'</div>';
-    btn.onclick=function(){ state.selectedDate=dateISO; setTodayUi(); renderCalendar(y,m); renderDayDetails(dateISO); };
-    grid.appendChild(btn);
-  }
-}
-document.getElementById('prevM').onclick=function(){ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month) }
-document.getElementById('nextM').onclick=function(){ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month) }
-
-/* ================== HOLIDAYS PAGE ================== */
-let hYear=state.year, hMonth=state.month;
-function renderHolidaysCalendar(y,m){
-  document.getElementById('h-title').textContent =
-    new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
-  document.getElementById('h-dow').innerHTML =
-    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(function(d){return '<span>'+d+'</span>'}).join('');
-  const grid=document.getElementById('h-grid'); grid.innerHTML='';
-  const first=new Date(y,m,1);
-  const startCol=(first.getDay()+6)%7, n=daysInMonth(y,m);
-  const key = ymStr(y,m);
-  const arr = (holidaysMap[key] || []).slice();
-
-  for(let i=0;i<startCol;i++){ const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d); }
-  for(let day=1; day<=n; day++){
-    const btn=document.createElement('button'); btn.className='cal-day';
-    const isHol=arr.indexOf(day)>-1;
-    btn.innerHTML='<span class="num">'+day+'</span><div class="badge">'+(isHol?'🎉':'')+'</div>';
-    btn.onclick=function(){
-      const list=holidaysMap[key]||[];
-      const i=list.indexOf(day);
-      if(i>-1) list.splice(i,1); else list.push(day);
-      holidaysMap[key]=list.sort(function(a,b){return a-b});
-      saveJSON(LS_KEYS.holidays, holidaysMap);
-      renderHolidaysCalendar(y,m);
-      if(y===state.year && m===state.month) renderCalendar(state.year,state.month);
+    btn.innerHTML=`<span class="num">${day}</span><div class="badge">${badge}</div>`;
+    btn.onclick=()=>{
+      state.selectedDate=dateISO; setTodayUi(); renderCalendar(y,m); renderDayDetails(dateISO);
     };
     grid.appendChild(btn);
   }
 }
-document.getElementById('hPrev').onclick=function(){ hMonth--; if(hMonth<0){hMonth=11;hYear--} renderHolidaysCalendar(hYear,hMonth) }
-document.getElementById('hNext').onclick=function(){ hMonth++; if(hMonth>11){hMonth=0;hYear++} renderHolidaysCalendar(hYear,hMonth) }
+document.getElementById('prevM').onclick=()=>{ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month) }
+document.getElementById('nextM').onclick=()=>{ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month) }
 
-/* ================== CALC HELPERS ================== */
+/* ================== DAY LIST & TOTALS ================== */
+function bindDeleteButtons(){
+  document.querySelectorAll('[data-del-id]').forEach(b=>{
+    b.onclick=()=>{ deleteEntryById(b.dataset.delId); renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month); };
+  });
+}
 function currentHourRate(){
-  const wd=Math.max(1, +settings.workdays||1);
-  const hpd=Math.max(1, +settings.hoursPerDay||1);
-  const sal= +settings.salary||0;
+  const wd = Math.max(1, Number(settings.workdays||22));
+  const hpd= Math.max(1, Number(settings.hoursPerDay||8));
+  const sal= Number(settings.salary||0);
   return wd*hpd>0 ? sal/(wd*hpd) : 0;
 }
-function isHoliday(dateISO){
-  const d=new Date(dateISO);
-  const key=ymStr(d.getFullYear(), d.getMonth());
-  const arr = holidaysMap[key]||[];
-  return arr.indexOf(d.getDate())>-1;
-}
-function isWeekday(dateISO){
-  const day = new Date(dateISO).getDay(); // 0=Sun..6=Sat
-  return day>=1 && day<=5;
-}
-function isSaturday(dateISO){ return new Date(dateISO).getDay()===6 }
-function isSunday(dateISO){ return new Date(dateISO).getDay()===0 }
 
-/* оплата подработок с коэффициентами */
-function calcOvertimePay(dateISO,hours,baseRate){
-  if(hours<=0) return 0;
-  if(isHoliday(dateISO)) return hours*baseRate*settings.rateHol;
-  if(isSaturday(dateISO)) return hours*baseRate*settings.rateSat;
-  if(isSunday(dateISO))   return hours*baseRate*settings.rateSun;
-  const first = Math.min(hours,2)*settings.rateWdFirst2;
-  const rest  = Math.max(0,hours-2)*settings.rateWdNext;
-  return baseRate*(first+rest);
-}
-
-/* вычитание отгула */
-function calcOffPenalty(dateISO,hours,baseRate){
-  if(hours<=0) return 0;
-  if(!isHoliday(dateISO) && isWeekday(dateISO)) return hours*baseRate;
-  return 0;
-}
-
-/* начисления месяца: оклад + подработки (для среднего) */
+/* ---- Среднедневной: «официальная» логика ---- */
 function monthAccruals(y,m){
   const ym = ymStr(y,m);
-  const list = loadEntries().filter(function(e){return e.date.slice(0,7)===ym});
-  const baseRate = currentHourRate();
-  var pay = +settings.salary || 0;
-  list.forEach(function(e){
-    if(e.kind==='work') pay += calcOvertimePay(e.date, +e.hours||0, baseRate);
-  });
-  return pay;
+  const list = loadEntries().filter(e=>e.date.slice(0,7)===ym);
+  const rate = currentHourRate();
+  let workH = 0;
+  list.forEach(e=>{ if(e.kind==='work') workH += Number(e.hours||0); });
+  const overtimePay = workH * rate;
+  // Если данных нет — берём только оклад
+  return Number(settings.salary||0) + overtimePay;
 }
-
-/* среднедневной: за 12 предшествующих месяцев; пустые — оклад */
+/* 12 полных месяцев до текущего */
 function autoAverageDaily(){
   const anchor = new Date(state.year, state.month, 1);
-  var sum = 0;
-  for(var i=1;i<=12;i++){
-    const d=new Date(anchor); d.setMonth(anchor.getMonth()-i);
+  let sum = 0;
+  for(let i=1;i<=12;i++){
+    const d = new Date(anchor); d.setMonth(anchor.getMonth()-i);
     sum += monthAccruals(d.getFullYear(), d.getMonth());
   }
-  return sum/(29.3*12);
+  return sum / (29.3 * 12);
 }
 function avgDaily(){
-  if(settings.avgDaily!=null) return +settings.avgDaily||0;
+  if(settings.avgDaily!=null) return Number(settings.avgDaily)||0;
   return autoAverageDaily();
 }
 
-/* итоги по месяцу выбранной даты */
 function calcTotals(dateISO){
   const ym=dateISO.slice(0,7);
-  const list=loadEntries().filter(function(e){return e.date.slice(0,7)===ym});
-  const baseRate=currentHourRate();
-  var workH=0, offH=0, vacD=0, otPay=0, offPenalty=0;
-
-  list.forEach(function(e){
-    if(e.kind==='work'){
-      const h=+e.hours||0;
-      workH+=h;
-      otPay+=calcOvertimePay(e.date, h, baseRate);
-    }else if(e.kind==='offHours'){
-      const h=+e.hours||0;
-      offH+=h;
-      offPenalty+=calcOffPenalty(e.date, h, baseRate);
-    }else if(e.kind==='vacation'){
-      vacD++;
-    }
+  const list=loadEntries().filter(e=>e.date.slice(0,7)===ym);
+  let workH=0, offH=0, vacD=0;
+  list.forEach(e=>{
+    if(e.kind==='work') workH+=Number(e.hours||0);
+    else if(e.kind==='offHours') offH+=Number(e.hours||0);
+    else if(e.kind==='vacation') vacD+=1;
   });
-
-  const leavePay = vacD*avgDaily();
-  const base = +settings.salary||0;
-  const total = Math.max(0, base + otPay + leavePay - offPenalty);
-
-  return {workH, offH, vacD, rate:baseRate, otPay, offPenalty, leavePay, base, total};
-}
-
-/* ================== DAY LIST & TOTALS RENDER ================== */
-function bindDeleteButtons(){
-  var nodes=document.querySelectorAll('[data-del-id]');
-  for(var i=0;i<nodes.length;i++){
-    nodes[i].onclick=function(){ deleteEntryById(this.dataset.delId); renderDayDetails(state.selectedDate); renderCalendar(state.year,state.month); };
-  }
+  const rate=currentHourRate();
+  const payWork=workH*rate;
+  const payVac=vacD*avgDaily();     // авто-расчёт по 12 мес. либо вручную заданный
+  const base = settings.salary;
+  const total = base + payWork + payVac;
+  return { workH, offH, vacD, rate, payWork, payVac, base, total };
 }
 function renderDayDetails(dateISO){
   const box=document.getElementById('day-list');
-  const list=loadEntries().filter(function(e){return e.date===dateISO});
+  const list=loadEntries().filter(e=>e.date===dateISO);
   const label=new Date(dateISO).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-  var html='<h3 style="margin:6px 0 10px">'+label+'</h3>';
-  if(list.length===0){
-    html+='<div class="mut">Записей нет.</div>';
-  }else{
-    html+=list.map(function(e){
+  let html=`<h3 style="margin:6px 0 10px">${label}</h3>`;
+  if(list.length===0){ html+=`<div class="mut">Записей нет.</div>`; }
+  else{
+    html+=list.map(e=>{
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
-      const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул':'Отпуск');
-      const hrs  = e.kind==='vacation'?'—':(+e.hours||0).toFixed(2);
-      return '<div class="rowline">'+
-        '<div><span class="pill">'+icon+'</span> '+title+'</div>'+
-        '<div style="text-align:right">'+hrs+'</div>'+
-        '<div></div>'+
-        '<div style="text-align:right"><button class="btn danger" data-del-id="'+e.id+'">Удалить</button></div>'+
-      '</div>';
+      const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул (часы)':'Отпуск');
+      const hrs  = e.kind==='vacation'?'—':Number(e.hours||0).toFixed(2);
+      return `<div class="rowline">
+        <div><span class="pill">${icon}</span> ${title}</div>
+        <div style="text-align:right">${hrs}</div>
+        <div></div>
+        <div style="text-align:right"><button class="btn danger" data-del-id="${e.id}">Удалить</button></div>
+      </div>`;
     }).join('');
   }
   box.innerHTML=html;
   bindDeleteButtons();
 
   const t=calcTotals(dateISO);
-  document.getElementById('totals').innerHTML =
-    '<span class="pill">База: '+t.base.toLocaleString('ru-RU')+' ₽</span>'+
-    '<span class="pill">Почасовая: '+t.rate.toFixed(0)+' ₽/ч</span>'+
-    '<span class="pill">Подработки: '+t.otPay.toLocaleString('ru-RU')+' ₽ (часы: '+t.workH.toFixed(2)+')</span>'+
-    '<span class="pill">Отгул: −'+t.offPenalty.toLocaleString('ru-RU')+' ₽ (часы: '+t.offH.toFixed(2)+')</span>'+
-    '<span class="pill">Отпуск: '+t.leavePay.toLocaleString('ru-RU')+' ₽ (дн.: '+t.vacD+')</span>'+
-    '<span class="pill" style="font-weight:700">Итого: '+t.total.toLocaleString('ru-RU')+' ₽</span>';
+  document.getElementById('totals').innerHTML = `
+    <span class="pill">База: ${t.base.toLocaleString('ru-RU')} ₽</span>
+    <span class="pill">Почасовая: ${t.rate.toFixed(0)} ₽/ч</span>
+    <span class="pill">Подработки: ${t.payWork.toLocaleString('ru-RU')} ₽ (часы: ${t.workH.toFixed(2)})</span>
+    <span class="pill">Отгул: ${t.offH.toFixed(2)} ч</span>
+    <span class="pill">Отпуск: ${t.payVac.toLocaleString('ru-RU')} ₽ (дн.: ${t.vacD})</span>
+    <span class="pill" style="font-weight:700">Итого: ${t.total.toLocaleString('ru-RU')} ₽</span>
+  `;
 }
 
+/* ================== HOLIDAYS PAGE ================== */
+let hYear=state.year, hMonth=state.month;  /* ← объявляем ОДИН РАЗ */
+
+function renderHolidaysCalendar(y,m){
+  document.getElementById('h-title').textContent =
+    new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  document.getElementById('h-dow').innerHTML =
+    ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
+  const grid=document.getElementById('h-grid'); grid.innerHTML='';
+  const first=new Date(y,m,1);
+  const startCol=(first.getDay()+6)%7, n=daysInMonth(y,m);
+  const key = ymStr(y,m);
+  const arr = (state.holidays[key] || []).slice();
+
+  for(let i=0;i<startCol;i++){ const d=document.createElement('div'); d.className='cal-day'; d.style.visibility='hidden'; grid.appendChild(d); }
+  for(let day=1; day<=n; day++){
+    const btn=document.createElement('button'); btn.className='cal-day';
+    const isHol=arr.includes(day);
+    btn.innerHTML=`<span class="num">${day}</span><div class="badge">${isHol?'🎉':''}</div>`;
+    btn.onclick=()=>{
+      const list=state.holidays[key]||[];
+      const i=list.indexOf(day);
+      if(i>-1) list.splice(i,1); else list.push(day);
+      state.holidays[key]=list.sort((a,b)=>a-b);
+      saveHolidays(state.holidays);
+      renderHolidaysCalendar(y,m);
+      if(y===state.year && m===state.month) renderCalendar(state.year,state.month);
+    };
+    grid.appendChild(btn);
+  }
+}
+document.getElementById('hPrev').onclick=()=>{ hMonth--; if(hMonth<0){hMonth=11;hYear--} renderHolidaysCalendar(hYear,hMonth) }
+document.getElementById('hNext').onclick=()=>{ hMonth++; if(hMonth>11){hMonth=0;hYear++} renderHolidaysCalendar(hYear,hMonth) }
+
 /* ================== IMPORT / EXPORT ================== */
-document.getElementById('btnExport').onclick=function(){
-  const payload={ entries:loadEntries(), holidays:holidaysMap, settings };
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+document.getElementById('btnExport').onclick=()=>{
+  const payload = { entries: loadEntries(), holidays: loadHolidays(), settings };
+  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='paycalc_data.json'; a.click();
   URL.revokeObjectURL(a.href);
 };
-document.getElementById('btnImport').onclick=function(){
-  var files=document.getElementById('file').files;
-  var f = files && files[0];
+document.getElementById('btnImport').onclick=()=>{
+  const f=document.getElementById('file').files?.[0];
   if(!f) return alert('Выберите файл JSON');
   const r=new FileReader();
-  r.onload=function(){
+  r.onload=()=>{
     try{
       const data=JSON.parse(r.result);
-      saveEntries(Array.isArray(data.entries)?data.entries:[]);
-      if(data.holidays && typeof data.holidays==='object') saveJSON(LS_KEYS.holidays, data.holidays);
+      if(Array.isArray(data.entries)) saveEntries(data.entries); else saveEntries([]);
+      if(data.holidays && typeof data.holidays==='object') saveHolidays(data.holidays);
       if(data.settings && typeof data.settings==='object'){
-        const merged = Object.assign({}, defaultSettings, data.settings);
-        saveJSON(LS_KEYS.settings, merged);
-        Object.assign(settings, merged);
-        refreshSettingsUI();
+        Object.assign(settings, defaultSettings, data.settings); saveSettingsObj(settings);
       }
       alert('Импорт выполнен');
       renderCalendar(state.year,state.month); renderDayDetails(state.selectedDate);
@@ -547,19 +478,11 @@ document.getElementById('btnImport').onclick=function(){
 };
 
 /* ================== INIT ================== */
+function renderHolidaysCalendarInit(){ renderHolidaysCalendar(hYear,hMonth); }
 setTodayUi();
 renderCalendar(state.year,state.month);
-let hYear=state.year, hMonth=state.month;
-renderHolidaysCalendar(hYear,hMonth);
 renderDayDetails(state.selectedDate);
-</script>
-  <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker
-      .register('./sw.js?v=2025-09-05-2')   // ← меняй хвост версии при каждом деплое
-      .then(reg => reg.update())
-      .catch(console.error);
-  }
+renderHolidaysCalendarInit();
 </script>
 </body>
 </html>
