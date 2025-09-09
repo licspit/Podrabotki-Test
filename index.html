@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>Подработки — оффлайн (PWA)</title>
+  <title>Подработки и зарплата — PWA</title>
 
-  <!-- ВАЖНО для GitHub Pages под-пути -->
+  <!-- Важно для GitHub Pages в под-папке -->
   <base href="./">
 
+  <!-- PWA -->
   <meta name="theme-color" content="#0b0d12"/>
   <link rel="manifest" href="./manifest.webmanifest" crossorigin="use-credentials"/>
-  <!-- iOS full-screen -->
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="apple-mobile-web-app-title" content="Подработки"/>
@@ -19,141 +19,149 @@
 
   <style>
     :root{
-      --bg:#0f1115;--card:#151922;--cardSoft:#1a1f2a;--text:#e9eef5;--muted:#9aa5b1;--line:#242a34;
-      --accent:#3b82f6;--ok:#16a34a;--danger:#ef4444;--warn:#f59e0b
+      --bg:#0e1117; --surface:#141922; --surface-2:#1a2030; --line:#263043;
+      --text:#e8eef7; --muted:#9aa6b2; --accent:#4e8cff;
+      --ok:#1eb980; --warn:#ffb020; --danger:#ff6b6b; --chip:#20283a;
+      --radius:16px;
     }
-    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    a{color:inherit}
     .wrap{max-width:1100px;margin:0 auto;padding:14px}
     header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-    header h1{margin:0;font-size:18px}
-    .tabs{display:flex;gap:6px;flex-wrap:wrap}
-    .tab{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--cardSoft);cursor:pointer}
-    .tab.active{outline:2px solid var(--accent)}
-    .content{margin-top:10px}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
-    label{display:inline-flex;flex-direction:column;gap:6px}
-    input,select,button,textarea{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--cardSoft);color:var(--text)}
-    button{cursor:pointer}
-    .btn-ok{border-color:#1f3a24;background:#142019;color:#9be7a0}
-    .btn-warn{border-color:#4a3a16;background:#201a0f;color:#ffd68a}
-    .btn-danger{border-color:#5a1f1f;background:#251113;color:#ffb3b3}
+    h1{margin:0;font-size:20px}
+    .seg{display:flex;gap:10px;flex-wrap:wrap}
+    .seg button{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);cursor:pointer}
+    .seg .active{outline:2px solid var(--accent)}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);cursor:pointer}
+    .btn-ok{background:#13261f;border-color:#1f4c38}
+    .btn-warn{background:#2b2312;border-color:#4a3a16}
+    .btn-danger{background:#2a1416;border-color:#5a1f1f}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
 
-    .calendarArea{display:grid;grid-template-columns:1fr 330px;gap:10px}
-    .calendar{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-    .dow{ text-align:center;font-weight:600;color:var(--muted)}
-    .day{border:1px solid var(--line);border-radius:8px;min-height:86px;padding:6px;background:var(--cardSoft);cursor:pointer;display:flex;flex-direction:column;gap:6px}
-    .day .head{display:flex;justify-content:space-between;align-items:center;font-size:12px}
-    .badges{display:inline-flex;gap:4px}
-    .badge{border:1px solid var(--line);border-radius:6px;padding:1px 4px;font-size:11px}
-    .badge.holiday{border-color:var(--warn)}
-    .badge.vac{border-color:#22c55e}
-    .badge.ot{border-color:#60a5fa}
-    .badge.otgul{border-color:#a78bfa}
-    .day .body{font-size:12px;color:var(--muted);display:grid;gap:3px}
-    .selected{outline:2px solid var(--accent)}
+    /* Формы */
+    label{display:flex;flex-direction:column;gap:6px;font-size:13px}
+    input,select{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-flex;align-items:center;gap:8px;background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+    .muted{color:var(--muted)}
+    hr{border:none;border-top:1px solid var(--line);margin:12px 0}
 
-    .editor{position:sticky;top:10px}
-    .legend{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+    /* Календарь из скрина */
+    .monthNav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin:6px 0}
+    .monthNav .prev{justify-self:start}
+    .monthNav .title{justify-self:center;font-weight:600}
+    .monthNav .next{justify-self:end}
+    .calendar{display:grid;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px}
+    .calendar .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:6px}
+    .calendar .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .cell{position:relative;min-height:70px;border:1px solid var(--line);border-radius:18px;background:var(--surface-2);padding:8px;display:flex;flex-direction:column;justify-content:space-between}
+    .cell .num{font-size:12px;color:var(--muted)}
+    .cell .ico{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .cell.selected{outline:3px solid var(--accent)}
+    .center{display:flex;justify-content:center;align-items:center}
+    .chips{display:flex;flex-wrap:wrap;gap:6px}
 
-    .summaryGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
-    .summaryItem{background:var(--cardSoft);border:1px solid var(--line);border-radius:8px;padding:8px}
+    /* Карточка дня как на фото */
+    .dayPanel .head{font-weight:700;font-size:18px;margin-bottom:8px}
+    .tokens{display:flex;flex-wrap:wrap;gap:8px}
+    .token{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:8px 12px}
 
-    @media (max-width:900px){
-      .calendarArea{grid-template-columns:1fr}
-      .editor{position:relative;top:0}
-    }
+    @media (max-width:900px){ .wrap{padding:10px} }
   </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Подработки — оффлайн (PWA)</h1>
-    <div class="row">
-      <button id="btnToday">Сегодня</button>
-      <button id="btnInstall" style="display:none">⬇️ Установить</button>
-      <button id="btnUpdate" class="btn-warn" title="Очистить кэш и обновить">🔄 Обновить</button>
+    <h1>Подработки и зарплата</h1>
+    <div class="toolbar">
+      <button id="btnToday" class="btn">Сегодня</button>
+      <button id="btnInstall" class="btn" style="display:none">⬇️ Установить</button>
+      <button id="btnUpdate" class="btn btn-warn" title="Очистить кэш и обновить">🔄 Обновить</button>
     </div>
   </header>
 
-  <div class="row tabs">
-    <button class="tab active" data-tab="calendar">Календарь</button>
-    <button class="tab" data-tab="holidays">Праздники</button>
-    <button class="tab" data-tab="settings">Настройки</button>
-    <button class="tab" data-tab="export">Экспорт/Импорт</button>
-    <button class="tab" data-tab="legend">Легенда</button>
+  <!-- Сегменты -->
+  <div class="seg">
+    <button class="segbtn active" data-tab="journal">Журнал</button>
+    <button class="segbtn" data-tab="settings">Настройки</button>
+    <button class="segbtn" data-tab="holidays">Праздники</button>
+    <button class="segbtn" data-tab="export">Экспорт</button>
   </div>
 
-  <div class="content">
+  <!-- ===== ЖУРНАЛ ===== -->
+  <section id="tab-journal" class="tab-pane" style="margin-top:10px">
+    <!-- Карточка ввода (как на 2-м скрине) -->
+    <div class="card" style="margin-bottom:10px">
+      <div class="row">
+        <label>Дата подработки
+          <input id="dateInput" type="date"/>
+        </label>
+        <button id="btnDateToday" class="btn">Сегодня</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>Тип
+          <select id="otType">
+            <option value="auto">(определить автоматически)</option>
+            <option value="weekday">Будни</option>
+            <option value="sat">Суббота</option>
+            <option value="sun">Воскресенье</option>
+            <option value="holiday">Праздник</option>
+          </select>
+        </label>
+        <label>Часы
+          <input id="otHours" type="number" min="0.5" step="0.5" placeholder="напр., 3.5"/>
+        </label>
+        <button id="btnAddOver" class="btn btn-ok">Добавить</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="muted">Быстрые кнопки:</div>
+        <button class="btn" data-q="3.5" data-t="weekday">Будни 3.5 ч</button>
+        <button class="btn" data-q="8" data-t="sat">Суббота 8 ч</button>
+        <button class="btn" data-q="8" data-t="sun">Воскресенье 8 ч</button>
+        <button class="btn" data-q="8" data-t="holiday">Праздник 8 ч</button>
+      </div>
+    </div>
+
     <!-- Календарь -->
-    <section id="tab-calendar" class="tab-pane">
-      <div class="card row">
-        <label>Год
-          <input id="yearInput" type="number" min="2000" max="2100"/>
-        </label>
-        <label>Месяц
-          <select id="monthSelect"></select>
-        </label>
-        <span class="muted">Статус сети: <b id="netState">…</b></span>
+    <div class="calendar">
+      <div class="monthNav">
+        <button class="btn" id="btnPrev">◀ Предыдущий</button>
+        <div class="title" id="monthTitle">—</div>
+        <button class="btn" id="btnNext">Следующий ▶</button>
       </div>
+      <div class="dow muted"><div class="center">Пн</div><div class="center">Вт</div><div class="center">Ср</div><div class="center">Чт</div><div class="center">Пт</div><div class="center">Сб</div><div class="center">Вс</div></div>
+      <div class="grid" id="calendarGrid"></div>
+      <div class="muted" style="margin-top:6px">🛠 — подработка; ⛔ — отгул (часы); 🏖️ — отпуск; 🎉 — праздничный.</div>
+    </div>
 
-      <div class="calendarArea">
-        <div>
-          <div class="calendar" id="calendar"></div>
-        </div>
-        <aside class="card editor" id="editor">
-          <h3 id="edTitle">День</h3>
-          <div class="row">
-            <button id="toggleHoliday" class="btn-warn">🎌 Переключить праздник</button>
-            <label class="row" style="align-items:center;gap:6px">
-              <input id="vacToggle" type="checkbox"/>
-              <span>🏖️ Отпуск (1 на день)</span>
-            </label>
-          </div>
-          <hr/>
-          <h4>Подработки</h4>
-          <div class="row">
-            <label>Часы
-              <input id="otHours" type="number" min="0" step="0.5" placeholder="например, 3.5"/>
-            </label>
-            <button id="setOvertime" class="btn-ok">Сохранить / Перезаписать</button>
-            <button id="q35">+3.5 ч</button>
-            <button id="q8">+8 ч</button>
-            <button id="clearOvertime" class="btn-danger">Удалить подработку</button>
-          </div>
-          <div id="otCurrent" class="muted" style="margin-top:4px"></div>
-
-          <hr/>
-          <h4>Отгулы (можно несколько)</h4>
-          <div class="row">
-            <label>Часы отгула
-              <input id="otgulHours" type="number" min="0.5" step="0.5" placeholder="например, 2"/>
-            </label>
-            <button id="addOtgul" class="btn-ok">Добавить</button>
-          </div>
-          <div id="otgulList" style="margin-top:6px"></div>
-          <div class="muted" style="margin-top:6px">Отгулы уменьшают базовые часы (базовую часть оклада).</div>
-        </aside>
+    <!-- Карточка выбранного дня (как на 1-м скрине) -->
+    <div class="card dayPanel" style="margin-top:10px">
+      <div class="head" id="dayHead">—</div>
+      <div class="row">
+        <div class="pill">🛠 Подработка: <b id="curOver">0</b> ч</div>
+        <div class="pill">⛔ Отгул: <b id="curOtgul">0</b> ч</div>
+        <div class="pill">🏖️ Отпуск: <b id="curVac">нет</b></div>
       </div>
-
-      <div class="card">
-        <h3>Сводка</h3>
-        <div class="summaryGrid" id="summary"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnOverDel" class="btn btn-danger">Удалить подработку</button>
+        <button id="btnVacToggle" class="btn">🏖️ Переключить отпуск</button>
+        <button id="btnOtgulAdd" class="btn">+ Отгул 2 ч</button>
+        <button id="btnOtgulRemove" class="btn btn-danger">– Удалить последний отгул</button>
+        <button id="btnHolidayToggle" class="btn btn-warn">🎉 Праздник</button>
       </div>
-    </section>
+      <hr/>
+      <div class="tokens" id="sumTokens"></div>
+      <div class="pill" style="margin-top:10px;font-size:18px"><b>Итого: <span id="totalSum">0 ₽</span></b></div>
+    </div>
+  </section>
 
-    <!-- Праздники -->
-    <section id="tab-holidays" class="tab-pane" style="display:none">
-      <div class="card">
-        <h3>Отметьте праздничные дни</h3>
-        <div id="holGrid" class="row" style="gap:6px;flex-wrap:wrap"></div>
-        <div class="muted" style="margin-top:6px">Можно отмечать праздники и прямо в календаре кнопкой «🎌» в редакторе дня.</div>
-      </div>
-    </section>
-
-    <!-- Настройки -->
-    <section id="tab-settings" class="tab-pane" style="display:none">
-      <div class="card row">
+  <!-- ===== НАСТРОЙКИ ===== -->
+  <section id="tab-settings" class="tab-pane" style="display:none;margin-top:10px">
+    <div class="card">
+      <div class="row">
         <label>Оклад (на руки), ₽
           <input id="salary" type="number" min="0" step="1000"/>
         </label>
@@ -164,454 +172,311 @@
           <input id="hoursPerDay" type="number" min="1" max="24" step="0.5"/>
         </label>
         <label>Среднедневной (опционально)
-          <input id="avgDailyManual" type="number" min="0" step="1" placeholder="если пусто — считаем автоматически"/>
+          <input id="avgDailyManual" type="number" min="0" step="1" placeholder="если пусто — авто"/>
         </label>
-        <button id="saveSettings" class="btn-ok">Сохранить</button>
+        <button id="saveSettings" class="btn btn-ok">Сохранить</button>
       </div>
-      <div class="card">
-        <h3>Авто-среднедневной (последние 12 мес)</h3>
-        <div id="avgDailyAutoView" class="muted">—</div>
-        <div class="row" style="margin-top:6px">
-          <button id="historyAddCurrent" class="btn-ok">Добавить текущий оклад в историю</button>
-          <button id="historyClear" class="btn-danger">Очистить историю 12 мес</button>
-        </div>
+      <hr/>
+      <div class="row">
+        <div class="muted">Авто-среднедневной (последние 12 мес):</div>
+        <div class="pill" id="avgDailyAutoView">—</div>
+        <button id="historyAddCurrent" class="btn btn-ok">Добавить текущий оклад в историю</button>
+        <button id="historyClear" class="btn btn-danger">Очистить историю</button>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Экспорт/Импорт -->
-    <section id="tab-export" class="tab-pane" style="display:none">
-      <div class="card row">
-        <button id="btnExportJson">⬇️ Экспорт JSON</button>
-        <label class="row" style="align-items:center;gap:6px">⬆️ Импорт JSON
+  <!-- ===== ПРАЗДНИКИ ===== -->
+  <section id="tab-holidays" class="tab-pane" style="display:none;margin-top:10px">
+    <div class="card">
+      <h3 style="margin:0 0 8px 0">Свои праздничные дни</h3>
+      <div id="holGrid" class="chips"></div>
+      <div class="muted" style="margin-top:8px">Нажмите на кнопку с датой, чтобы включить/выключить.</div>
+    </div>
+  </section>
+
+  <!-- ===== ЭКСПОРТ ===== -->
+  <section id="tab-export" class="tab-pane" style="display:none;margin-top:10px">
+    <div class="card">
+      <div class="row">
+        <button id="btnExportJson" class="btn">⬇️ Экспорт JSON</button>
+        <label class="row" style="align-items:center">⬆️ Импорт JSON
           <input id="importJson" type="file" accept="application/json"/>
         </label>
-        <button id="btnResetMonth" class="btn-danger">🗑️ Сброс текущего месяца</button>
+        <button id="btnResetMonth" class="btn btn-danger">🗑️ Сброс текущего месяца</button>
       </div>
-      <div class="card muted">
-        Импорт полностью заменяет данные текущего месяца. Перед импортом сделайте экспорт на всякий случай.
-      </div>
-    </section>
-
-    <!-- Легенда -->
-    <section id="tab-legend" class="tab-pane" style="display:none">
-      <div class="card legend">
-        <span>🎌 — праздник</span>
-        <span>🏖️ — отпуск (1 на день)</span>
-        <span>🕑 — подработка</span>
-        <span>🕘 — отгул (минус часы базы)</span>
-        <span>🔄 — обновить (сбросить кэш PWA)</span>
-      </div>
-      <div class="card">
-        <h3>Подсказки</h3>
-        <ul>
-          <li><b>Подработка</b>: вводишь часы и жмёшь «Сохранить / Перезаписать». Быстрые кнопки: 3.5 ч, 8 ч.</li>
-          <li><b>Отгулы</b>: можно добавить несколько записей на один день; каждая уменьшает базовые часы.</li>
-          <li><b>Отпуск</b>: один переключатель на день; отпускные считаются по среднедневному.</li>
-          <li><b>Праздники</b>: отметь в календаре (кнопка в редакторе) или на вкладке «Праздники».</li>
-          <li><b>Сегодня</b>: кнопка в шапке быстро выделит текущую дату.</li>
-        </ul>
-      </div>
-    </section>
-  </div>
+      <div class="muted" style="margin-top:8px">Импорт полностью заменяет данные текущего месяца.</div>
+    </div>
+  </section>
 </div>
 
 <script>
-/* ===== Утилиты дат ===== */
-const MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+/* ==== ДАТЫ/УТИЛЫ ==== */
+const MONTHS = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
 const DOW = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
-const pad2 = n => (n<10?`0${n}`:`${n}`);
+const pad2 = n => (n<10?`0${n}`:String(n));
 const ymd = (y,m0,d)=>`${y}-${pad2(m0+1)}-${pad2(d)}`;
 const parseYmd = s => { const [y,m,d]=s.split("-").map(Number); return {y, m0:m-1, d}; };
-const daysInMonth = (y,m0)=> new Date(y,m0+1,0).getDate();
-const firstWeekday = (y,m0)=> (new Date(y,m0,1).getDay()+6)%7; // 0..6 Mon..Sun
-const isWeekend = (y,m0,d)=> { const js=new Date(y,m0,d).getDay(); return js===0||js===6; };
+const daysInMonth=(y,m0)=>new Date(y,m0+1,0).getDate();
+const firstWeekday=(y,m0)=>(new Date(y,m0,1).getDay()+6)%7; // 0..6 Mon..Sun
+const isWeekend=(y,m0,d)=>{ const js=new Date(y,m0,d).getDay(); return js===0||js===6; };
+const fmtRub = n => new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:2}).format(n);
 
-/* ===== Хранилище ===== */
-const KEY="podrabotki.v2";
-const KEY_HIST="podrabotki.history";
-const loadMonth=(y,m0)=>{
+/* ==== ХРАНИЛИЩЕ ==== */
+const KEY="podrabotki.v2"; const KEY_HIST="podrabotki.history";
+function loadMonth(y,m0){
   const raw=localStorage.getItem(KEY);
-  if(raw){
-    try{
-      const obj=JSON.parse(raw);
-      if(obj.year===y && obj.month===m0) return obj;
-    }catch{}
-  }
-  const dim=daysInMonth(y,m0);
-  const days={};
-  for(let d=1; d<=dim; d++){ const date=ymd(y,m0,d); days[date]={date,overtimeHours:0, otguls:[], vacation:false}; }
-  // по умолчанию рабочие дни = кол-во Пн-Пт
+  if(raw){ try{ const obj=JSON.parse(raw); if(obj.year===y&&obj.month===m0) return obj; }catch{} }
+  const dim=daysInMonth(y,m0); const days={};
+  for(let d=1; d<=dim; d++){ const date=ymd(y,m0,d); days[date]={date,overtimeHours:0,otguls:[],vacation:false}; }
   let wd=0; for(let d=1; d<=dim; d++){const js=new Date(y,m0,d).getDay(); if(js>=1&&js<=5) wd++;}
-  return {year:y, month:m0, baseSalary:0, workingDays:wd, hoursPerDay:8, avgDailyManual:null, holidays:[], days};
-};
-const saveMonth=(md)=> localStorage.setItem(KEY, JSON.stringify(md));
-const loadHistory=()=> { try{ return JSON.parse(localStorage.getItem(KEY_HIST)||"{}"); }catch{ return {}; } };
-const saveHistory=(h)=> localStorage.setItem(KEY_HIST, JSON.stringify(h));
+  return {year:y,month:m0,baseSalary:0,workingDays:wd,hoursPerDay:8,avgDailyManual:null,holidays:[],days};
+}
+const saveMonth=(md)=>localStorage.setItem(KEY,JSON.stringify(md));
+const loadHistory=()=>{ try{return JSON.parse(localStorage.getItem(KEY_HIST)||"{}");}catch{return{}}; };
+const saveHistory=(h)=>localStorage.setItem(KEY_HIST,JSON.stringify(h));
 
-/* ===== Состояние ===== */
-const now = new Date();
-let state = { selectedDate: null, data: loadMonth(now.getFullYear(), now.getMonth()), history: loadHistory() };
+/* ==== СОСТОЯНИЕ ==== */
+const now=new Date();
+let state={ data: loadMonth(now.getFullYear(), now.getMonth()), history: loadHistory(), selected: null };
 
-/* ===== Расчёты ===== */
-const hourlyRate = (md)=>{
-  const denom = md.workingDays>0 && md.hoursPerDay>0 ? md.workingDays*md.hoursPerDay : 0;
+/* ==== РАСЧЁТЫ ==== */
+const hourlyRate=(md)=> {
+  const denom=md.workingDays>0 && md.hoursPerDay>0 ? md.workingDays*md.hoursPerDay : 0;
   return denom>0 ? md.baseSalary/denom : 0;
 };
-
-const compute = (md)=>{
-  const rate = hourlyRate(md);
-  const denomHours = md.workingDays*md.hoursPerDay;
-  let baseHoursWorked = 0;
-  let overtimeHours = 0;
-  let vacationDays = 0;
-
+function compute(md){
+  const rate=hourlyRate(md);
+  const denomH=md.workingDays*md.hoursPerDay;
+  let baseHours=0, overH=0, vacDays=0;
   for(const d of Object.values(md.days)){
-    const {y,m0,d:dd} = parseYmd(d.date);
-    const weekend = isWeekend(y,m0,dd);
-    // базовые часы: только будни (Пн-Пт), не отпуск; минус отгулы (но не ниже 0)
-    if(!weekend && !d.vacation){
-      const otgulSum = d.otguls.reduce((a,b)=>a+b,0);
-      const baseToday = Math.max(0, md.hoursPerDay - otgulSum);
-      baseHoursWorked += baseToday;
+    const {y,m0,d:dd}=parseYmd(d.date);
+    if(!isWeekend(y,m0,dd) && !d.vacation){
+      const minus = (d.otguls||[]).reduce((a,b)=>a+b,0);
+      baseHours += Math.max(0, md.hoursPerDay - minus);
     }
-    // подработка — суммируем все часы
-    overtimeHours += d.overtimeHours || 0;
-    // отпускные дни
-    if(d.vacation) vacationDays += 1;
+    overH += d.overtimeHours||0;
+    if(d.vacation) vacDays++;
   }
+  const basePart = denomH>0 ? (baseHours/denomH)*md.baseSalary : 0;
+  const overPay = overH*rate;
 
-  const basePart = denomHours>0 ? (baseHoursWorked/denomHours)*md.baseSalary : 0;
-  const overtimePay = rate * overtimeHours;
+  // среднедневной
+  const hist=loadHistory(); const keys=Object.keys(hist).sort().slice(-12);
+  let avgAuto = (md.baseSalary||0)/29.3;
+  if(keys.length){ const sum=keys.reduce((a,k)=>a+(+hist[k]||0),0); avgAuto = sum/(12*29.3); }
+  const avgDaily = (md.avgDailyManual && md.avgDailyManual>0) ? md.avgDailyManual : avgAuto;
+  const vacPay = vacDays*avgDaily;
 
-  // Среднедневной
-  let avgDailyAuto = 0;
-  const hist = loadHistory();
-  const keys = Object.keys(hist).sort().slice(-12);
-  if(keys.length>0){
-    const sum = keys.reduce((a,k)=>a + (Number(hist[k])||0),0);
-    avgDailyAuto = sum / (12*29.3); // официальная формула (упрощённая): сумма за 12 мес / (12 × 29.3)
-  } else {
-    // если нет истории — ориентируемся на текущий оклад
-    avgDailyAuto = (md.baseSalary || 0) / 29.3;
-  }
-  const avgDaily = (md.avgDailyManual && md.avgDailyManual>0) ? md.avgDailyManual : avgDailyAuto;
-  const vacationPay = vacationDays * avgDaily;
+  return {rate,baseHours,basePart,overH,overPay,vacDays,avgDaily,avgAuto,total:basePart+overPay+vacPay};
+}
 
-  const total = basePart + overtimePay + vacationPay;
+/* ==== ЭЛЕМЕНТЫ ==== */
+const $=s=>document.querySelector(s);
+const monthTitle=$("#monthTitle");
+const grid=$("#calendarGrid");
+const dateInput=$("#dateInput");
+const btnDateToday=$("#btnDateToday");
+const btnPrev=$("#btnPrev"), btnNext=$("#btnNext"), btnToday=$("#btnToday");
+const curOver=$("#curOver"), curOtgul=$("#curOtgul"), curVac=$("#curVac"), dayHead=$("#dayHead");
+const btnOverDel=$("#btnOverDel"), btnVacToggle=$("#btnVacToggle"), btnOtgulAdd=$("#btnOtgulAdd"), btnOtgulRemove=$("#btnOtgulRemove"), btnHolidayToggle=$("#btnHolidayToggle");
+const sumTokens=$("#sumTokens"), totalSum=$("#totalSum");
+const salary=$("#salary"), workDays=$("#workDays"), hoursPerDay=$("#hoursPerDay"), avgDailyManual=$("#avgDailyManual"), saveSettings=$("#saveSettings");
+const avgDailyAutoView=$("#avgDailyAutoView"); const holGrid=$("#holGrid");
+const importJson=$("#importJson");
 
-  return { rate, baseHoursWorked, overtimeHours, vacationDays, avgDailyAuto, avgDaily, basePart, overtimePay, vacationPay, total };
-};
-
-const fmt = n=> new Intl.NumberFormat("ru-RU",{style:"currency",currency:"RUB",maximumFractionDigits:0}).format(Math.round(n));
-
-/* ===== Рендер ===== */
-const $ = sel => document.querySelector(sel);
-const calendarEl = $("#calendar");
-const yearInput = $("#yearInput");
-const monthSelect = $("#monthSelect");
-const edTitle = $("#edTitle");
-const vacToggle = $("#vacToggle");
-const otHours = $("#otHours");
-const setOvertimeBtn = $("#setOvertime");
-const q35 = $("#q35");
-const q8 = $("#q8");
-const clearOvertime = $("#clearOvertime");
-const otCurrent = $("#otCurrent");
-const otgulHours = $("#otgulHours");
-const otgulList = $("#otgulList");
-const toggleHolidayBtn = $("#toggleHoliday");
-const summary = $("#summary");
-const holGrid = $("#holGrid");
-const salary = $("#salary");
-const workDays = $("#workDays");
-const hoursPerDay = $("#hoursPerDay");
-const avgDailyManual = $("#avgDailyManual");
-const saveSettings = $("#saveSettings");
-const avgDailyAutoView = $("#avgDailyAutoView");
-const importJson = $("#importJson");
+/* ==== UI ==== */
+function setTab(id){
+  document.querySelectorAll(".segbtn").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  document.querySelectorAll(".tab-pane").forEach(p=>p.style.display = (p.id===`tab-${id}`) ? "" : "none");
+}
+document.querySelectorAll(".segbtn").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 
 function initUI(){
-  monthSelect.innerHTML = MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join("");
-  yearInput.value = String(state.data.year);
-  monthSelect.value = String(state.data.month);
+  updateMonthHeader();
+  renderCalendar();
+  bindSettings();
+  renderDayPanel();
+  renderHolidaysTab();
+  renderTotals();
+  syncDateInputToSelected();
+  renderAvgDailyAuto();
+}
+function updateMonthHeader(){
+  monthTitle.textContent = `${MONTHS[state.data.month]} ${state.data.year} г.`;
+}
+function syncDateInputToSelected(){
+  if(state.selected) dateInput.value = state.selected;
+  else dateInput.value = ymd(state.data.year, state.data.month, 1);
+}
+function renderCalendar(){
+  const {year,month} = state.data;
+  const dim=daysInMonth(year,month), lead=firstWeekday(year,month);
+  const cells=[];
+  for(let i=0;i<lead;i++) cells.push(`<div></div>`);
+  for(let d=1; d<=dim; d++){
+    const date=ymd(year,month,d); const dd=state.data.days[date];
+    const badges=[];
+    if(dd?.overtimeHours>0) badges.push("🛠");
+    const otg=(dd?.otguls||[]).reduce((a,b)=>a+b,0); if(otg>0) badges.push("⛔");
+    if(dd?.vacation) badges.push("🏖️");
+    if(state.data.holidays.includes(date)) badges.push("🎉");
+    const sel = state.selected===date ? " selected":"";
+    cells.push(`<div class="cell${sel}" data-date="${date}">
+      <div class="num">${d}</div>
+      <div class="ico">${badges.map(x=>`<span>${x}</span>`).join("")}</div>
+    </div>`);
+  }
+  grid.innerHTML = cells.join("");
+  grid.querySelectorAll(".cell").forEach(c=>{
+    c.addEventListener("click", ()=>{
+      state.selected = c.dataset.date;
+      renderCalendar();
+      renderDayPanel();
+    }, {passive:true});
+  });
+}
+function renderDayPanel(){
+  const date = state.selected;
+  if(!date){ dayHead.textContent="Выберите день"; curOver.textContent="0"; curOtgul.textContent="0"; curVac.textContent="нет"; return; }
+  const {y,m0,d} = parseYmd(date);
+  const weekday = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"][new Date(y,m0,d).getDay()];
+  dayHead.textContent = `${weekday}, ${d} ${MONTHS[m0]} ${y} г.`;
+  const dd = state.data.days[date];
+  curOver.textContent = String(dd.overtimeHours||0);
+  curOtgul.textContent = String((dd.otguls||[]).reduce((a,b)=>a+b,0));
+  curVac.textContent = dd.vacation ? "да" : "нет";
+  renderTotals(); // для сути первой карточки
+}
+function renderTotals(){
+  const t = compute(state.data);
+  sumTokens.innerHTML = [
+    `<span class="pill">База: <b>${fmtRub(t.basePart)}</b></span>`,
+    `<span class="pill">Почасовая: <b>${fmtRub(t.rate)}</b></span>`,
+    `<span class="pill" style="background:#13261f;border-color:#1f4c38">Подработки: <b>${fmtRub(t.overPay)}</b> (часы: ${t.overH.toFixed(2)})</span>`,
+    `<span class="pill">Отгул: <b>${state.selected? (state.data.days[state.selected].otguls||[]).reduce((a,b)=>a+b,0):0} ч</b></span>`,
+    `<span class="pill">Отпуск: <b>${fmtRub(t.vacDays*t.avgDaily)}</b></span>`
+  ].join("");
+  totalSum.textContent = fmtRub(t.total);
+}
+function bindSettings(){
   salary.value = String(state.data.baseSalary||0);
   workDays.value = String(state.data.workingDays||0);
   hoursPerDay.value = String(state.data.hoursPerDay||8);
   avgDailyManual.value = state.data.avgDailyManual ? String(state.data.avgDailyManual) : "";
-  renderAll();
 }
 
-function renderAll(){
-  renderCalendar();
-  renderEditor();
-  renderSummary();
-  renderHolidaysTab();
-  renderAvgDailyAuto();
-}
+/* ==== События верхних кнопок ==== */
+btnPrev.addEventListener("click", ()=>{
+  let y=state.data.year, m=state.data.month-1; if(m<0){m=11;y--;}
+  state.data = loadMonth(y,m); saveMonth(state.data); state.selected=null; updateMonthHeader(); renderCalendar(); renderHolidaysTab(); renderDayPanel();
+});
+btnNext.addEventListener("click", ()=>{
+  let y=state.data.year, m=state.data.month+1; if(m>11){m=0;y++;}
+  state.data = loadMonth(y,m); saveMonth(state.data); state.selected=null; updateMonthHeader(); renderCalendar(); renderHolidaysTab(); renderDayPanel();
+});
+btnToday.addEventListener("click", ()=>{
+  const t=new Date();
+  state.data = loadMonth(t.getFullYear(), t.getMonth()); saveMonth(state.data);
+  state.selected = ymd(t.getFullYear(),t.getMonth(),t.getDate());
+  updateMonthHeader(); renderCalendar(); renderDayPanel(); renderHolidaysTab();
+});
+btnDateToday.addEventListener("click", ()=>{
+  const t=new Date(); dateInput.value = ymd(t.getFullYear(),t.getMonth(),t.getDate());
+});
 
-function renderCalendar(){
-  const {year, month} = state.data;
-  const dim = daysInMonth(year, month);
-  const lead = firstWeekday(year, month);
-
-  const dowRow = DOW.map(d=>`<div class="dow">${d}</div>`).join("");
-  const blanks = Array.from({length:lead},()=>`<div></div>`).join("");
-
-  const daysHtml = Array.from({length:dim},(_,i)=>{
-    const d = i+1;
-    const date = ymd(year, month, d);
-    const dd = state.data.days[date];
-    const badges=[];
-    if(state.data.holidays.includes(date)) badges.push(`<span class="badge holiday" title="Праздник">🎌</span>`);
-    if(dd?.vacation) badges.push(`<span class="badge vac" title="Отпуск">🏖️</span>`);
-    if((dd?.overtimeHours||0)>0) badges.push(`<span class="badge ot" title="Подработка">🕑 ${dd.overtimeHours}ч</span>`);
-    const otgulSum = (dd?.otguls||[]).reduce((a,b)=>a+b,0);
-    if(otgulSum>0) badges.push(`<span class="badge otgul" title="Отгулы">🕘 ${otgulSum}ч</span>`);
-    const selected = state.selectedDate===date?' selected':'';
-    return `<div class="day${selected}" data-date="${date}">
-      <div class="head"><div>${d}</div><div class="badges">${badges.join("")}</div></div>
-      <div class="body">${badges.length? "" : '<span class="muted">—</span>'}</div>
-    </div>`;
-  }).join("");
-
-  calendarEl.innerHTML = dowRow + blanks + daysHtml;
-  calendarEl.querySelectorAll(".day").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      state.selectedDate = el.dataset.date;
-      renderCalendar(); // подсветка
-      renderEditor();
-    }, {passive:true});
+/* ==== Добавление/быстрые кнопки как на фото ==== */
+document.querySelectorAll('[data-q]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    dateInput.value = dateInput.value || ymd(state.data.year, state.data.month, 1);
+    $("#otType").value = btn.dataset.t || "auto";
+    $("#otHours").value = btn.dataset.q;
+    $("#btnAddOver").click();
   });
-}
+});
+$("#btnAddOver").addEventListener("click", ()=>{
+  const date = dateInput.value || state.selected;
+  if(!date){ alert("Выберите дату"); return; }
+  state.selected = date;
+  const hours = Math.max(0.5, Math.round((Number($("#otHours").value)||0)*2)/2);
+  state.data.days[date].overtimeHours = hours; // перезапись, как требовалось
+  saveMonth(state.data); renderCalendar(); renderDayPanel();
+});
+btnOverDel.addEventListener("click", ()=>{
+  if(!state.selected) return; state.data.days[state.selected].overtimeHours = 0; saveMonth(state.data); renderCalendar(); renderDayPanel();
+});
+btnVacToggle.addEventListener("click", ()=>{
+  if(!state.selected) return; const d=state.data.days[state.selected]; d.vacation=!d.vacation; saveMonth(state.data); renderCalendar(); renderDayPanel();
+});
+btnOtgulAdd.addEventListener("click", ()=>{
+  if(!state.selected) return; state.data.days[state.selected].otguls.push(2); saveMonth(state.data); renderCalendar(); renderDayPanel();
+});
+btnOtgulRemove.addEventListener("click", ()=>{
+  if(!state.selected) return; const arr=state.data.days[state.selected].otguls; if(arr.length) arr.pop(); saveMonth(state.data); renderCalendar(); renderDayPanel();
+});
+btnHolidayToggle.addEventListener("click", ()=>{
+  if(!state.selected) return;
+  const arr=state.data.holidays; const i=arr.indexOf(state.selected); if(i>=0) arr.splice(i,1); else arr.push(state.selected);
+  arr.sort(); saveMonth(state.data); renderCalendar(); renderDayPanel(); renderHolidaysTab();
+});
 
-function renderEditor(){
-  const date = state.selectedDate;
-  if(!date){
-    edTitle.textContent = "День";
-    vacToggle.disabled = true;
-    setOvertimeBtn.disabled = q35.disabled = q8.disabled = clearOvertime.disabled = true;
-    otHours.disabled = otgulHours.disabled = true;
-    toggleHolidayBtn.disabled = true;
-    otCurrent.textContent = "";
-    otgulList.innerHTML = "";
-    return;
-  }
-  const dd = state.data.days[date];
-  edTitle.textContent = `День: ${date}`;
-  vacToggle.disabled = false;
-  setOvertimeBtn.disabled = q35.disabled = q8.disabled = clearOvertime.disabled = false;
-  otHours.disabled = otgulHours.disabled = false;
-  toggleHolidayBtn.disabled = false;
-  vacToggle.checked = dd.vacation;
-  otCurrent.textContent = (dd.overtimeHours||0)>0 ? `Текущая подработка: ${dd.overtimeHours} ч` : "Подработки нет";
-
-  // список отгулов
-  const items = (dd.otguls||[]).map((h,idx)=>`<div class="row" style="justify-content:space-between">
-    <span>🕘 Отгул: <b>${h}</b> ч</span>
-    <button data-idx="${idx}" class="btn-danger small">Удалить</button>
-  </div>`).join("");
-  otgulList.innerHTML = items || `<span class="muted">Отгулов нет</span>`;
-  otgulList.querySelectorAll("button").forEach(btn=>{
-    btn.addEventListener("click", (e)=>{
-      const i = Number(btn.dataset.idx);
-      dd.otguls.splice(i,1);
-      saveMonth(state.data);
-      renderAll();
-      e.stopPropagation();
-    });
-  });
-}
-
-function renderSummary(){
-  const t = compute(state.data);
-  const items = [
-    {label:"Почасовая ставка", val: fmt(t.rate)},
-    {label:"База (часов)", val: `${t.baseHoursWorked} ч`},
-    {label:"База (сумма)", val: fmt(t.basePart)},
-    {label:"Подработки (часы)", val: `${t.overtimeHours} ч`},
-    {label:"Подработки (сумма)", val: fmt(t.overtimePay)},
-    {label:"Отпуск (дни)", val: `${t.vacationDays}`},
-    {label:"Среднедневной", val: fmt(t.avgDaily)},
-    {label:"Отпускные", val: fmt(t.vacationPay)},
-    {label:"Итого", val: fmt(t.total)},
-  ];
-  summary.innerHTML = items.map(it=>`<div class="summaryItem"><div class="muted">${it.label}</div><div style="font-size:18px;margin-top:4px">${it.val}</div></div>`).join("");
-}
-
+/* ==== Праздники вкладка ==== */
 function renderHolidaysTab(){
-  const {year, month} = state.data;
-  const dim = daysInMonth(year, month);
-  const set = new Set(state.data.holidays);
-  holGrid.innerHTML = Array.from({length:dim},(_,i)=>{
-    const d=i+1; const date=ymd(year,month,d);
-    const active = set.has(date) ? 'style="outline:2px solid var(--warn)"' : "";
-    return `<button data-date="${date}" class="tab" ${active}>🎌 ${d}</button>`;
+  const {year,month}=state.data; const dim=daysInMonth(year,month); const set=new Set(state.data.holidays);
+  const html = Array.from({length:dim},(_,i)=>{const d=i+1; const date=ymd(year,month,d); const on=set.has(date);
+    return `<button class="btn" data-date="${date}" style="border-radius:999px;${on?'outline:2px solid var(--warn)':''}">🎉 ${d}</button>`;
   }).join("");
-  holGrid.querySelectorAll("button").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      const date=b.dataset.date;
-      const arr=state.data.holidays;
-      const i=arr.indexOf(date);
-      if(i>=0) arr.splice(i,1); else arr.push(date);
-      arr.sort();
-      saveMonth(state.data);
-      renderAll();
-    }, {passive:true});
-  });
+  holGrid.innerHTML = html;
+  holGrid.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    const date=b.dataset.date; const arr=state.data.holidays; const i=arr.indexOf(date); if(i>=0) arr.splice(i,1); else arr.push(date);
+    arr.sort(); saveMonth(state.data); renderCalendar(); renderHolidaysTab();
+  }));
 }
 
-function renderAvgDailyAuto(){
-  const t = compute(state.data);
-  avgDailyAutoView.textContent = `Авто: ${fmt(t.avgDailyAuto)} (на основе истории за 12 мес, если она есть).`;
-}
-
-/* ===== Обработчики ===== */
-// вкладки
-document.querySelectorAll(".tab").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    const id = btn.dataset.tab;
-    if(!id) return;
-    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active", x===btn));
-    document.querySelectorAll(".tab-pane").forEach(p=> p.style.display = (p.id === `tab-${id}`) ? "" : "none");
-  });
-});
-
-// выбор месяца/года
-yearInput.addEventListener("change", ()=>{
-  const y=Number(yearInput.value)||now.getFullYear();
-  const m=Number(monthSelect.value)||0;
-  state.data = loadMonth(y,m);
-  saveMonth(state.data);
-  state.selectedDate=null;
-  initUI();
-});
-monthSelect.addEventListener("change", ()=>{
-  const y=Number(yearInput.value)||now.getFullYear();
-  const m=Number(monthSelect.value)||0;
-  state.data = loadMonth(y,m);
-  saveMonth(state.data);
-  state.selectedDate=null;
-  initUI();
-});
-
-// редактор дня
-vacToggle.addEventListener("change", ()=>{
-  if(!state.selectedDate) return;
-  state.data.days[state.selectedDate].vacation = !!vacToggle.checked;
-  saveMonth(state.data);
-  renderAll();
-});
-toggleHolidayBtn.addEventListener("click", ()=>{
-  if(!state.selectedDate) return;
-  const d=state.selectedDate;
-  const arr=state.data.holidays;
-  const i=arr.indexOf(d);
-  if(i>=0) arr.splice(i,1); else arr.push(d);
-  arr.sort();
-  saveMonth(state.data);
-  renderAll();
-});
-setOvertimeBtn.addEventListener("click", ()=>{
-  if(!state.selectedDate) return;
-  const v = Math.max(0, Math.round((Number(otHours.value)||0)*2)/2);
-  state.data.days[state.selectedDate].overtimeHours = v; // перезапись
-  saveMonth(state.data);
-  renderAll();
-});
-q35.addEventListener("click", ()=>{ otHours.value="3.5"; setOvertimeBtn.click(); });
-q8.addEventListener("click", ()=>{ otHours.value="8"; setOvertimeBtn.click(); });
-clearOvertime.addEventListener("click", ()=>{
-  if(!state.selectedDate) return;
-  state.data.days[state.selectedDate].overtimeHours = 0;
-  saveMonth(state.data);
-  renderAll();
-});
-$("#addOtgul").addEventListener("click", ()=>{
-  if(!state.selectedDate) return;
-  const v = Math.max(0.5, Math.round((Number(otgulHours.value)||0)*2)/2);
-  state.data.days[state.selectedDate].otguls.push(v);
-  saveMonth(state.data);
-  renderAll();
-});
-
-// настройки
+/* ==== Настройки / История ==== */
 saveSettings.addEventListener("click", ()=>{
   state.data.baseSalary = Math.max(0, Math.round(Number(salary.value)||0));
   state.data.workingDays = Math.max(0, Math.round(Number(workDays.value)||0));
   state.data.hoursPerDay = Math.max(1, Math.round((Number(hoursPerDay.value)||8)*2)/2);
-  const avg = Number(avgDailyManual.value);
-  state.data.avgDailyManual = Number.isFinite(avg)&&avg>0 ? avg : null;
-  saveMonth(state.data);
-  renderAll();
+  const avg = Number(avgDailyManual.value); state.data.avgDailyManual = (Number.isFinite(avg)&&avg>0) ? avg : null;
+  saveMonth(state.data); renderTotals(); renderAvgDailyAuto();
 });
-
-// история 12 мес
 $("#historyAddCurrent").addEventListener("click", ()=>{
-  const h = loadHistory();
-  const k = `${state.data.year}-${pad2(state.data.month+1)}`;
-  h[k] = state.data.baseSalary || 0;
-  saveHistory(h);
-  renderAvgDailyAuto();
+  const h=loadHistory(); const k=`${state.data.year}-${pad2(state.data.month+1)}`; h[k]=state.data.baseSalary||0; saveHistory(h); renderAvgDailyAuto();
 });
-$("#historyClear").addEventListener("click", ()=>{
-  if(confirm("Очистить историю окладов за 12 месяцев?")){ saveHistory({}); renderAvgDailyAuto(); }
-});
+$("#historyClear").addEventListener("click", ()=>{ if(confirm("Очистить историю окладов?")){ saveHistory({}); renderAvgDailyAuto(); }});
+function renderAvgDailyAuto(){ const t=compute(state.data); avgDailyAutoView.textContent = fmtRub(t.avgAuto); }
 
-// экспорт/импорт
+/* ==== Экспорт / Импорт ==== */
 $("#btnExportJson").addEventListener("click", ()=>{
-  const payload = { schema:2, payload: state.data, history: loadHistory() };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`podrabotki_${state.data.year}_${state.data.month+1}.json`;
-  a.click(); URL.revokeObjectURL(a.href);
+  const payload={schema:2, payload:state.data, history:loadHistory()};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`podrabotki_${state.data.year}_${state.data.month+1}.json`; a.click(); URL.revokeObjectURL(a.href);
 });
 importJson.addEventListener("change", async ()=>{
   const f=importJson.files?.[0]; if(!f) return;
   try{
-    const txt=await f.text();
-    const parsed=JSON.parse(txt);
-    if(!parsed || !parsed.payload) throw new Error("Неверный формат");
-    state.data = parsed.payload;
-    if(parsed.history) saveHistory(parsed.history);
-    saveMonth(state.data);
-    state.selectedDate=null;
-    initUI();
-    alert("Данные импортированы");
-  }catch(e){ alert("Ошибка импорта: " + (e?.message||e)); }
+    const text=await f.text(); const json=JSON.parse(text); if(!json||!json.payload) throw new Error("Неверный формат");
+    state.data=json.payload; if(json.history) saveHistory(json.history); saveMonth(state.data);
+    state.selected=null; updateMonthHeader(); renderCalendar(); renderDayPanel(); renderHolidaysTab(); renderTotals(); bindSettings(); renderAvgDailyAuto();
+    alert("Импорт завершён");
+  }catch(e){ alert("Ошибка импорта: "+(e?.message||e)); }
   finally{ importJson.value=""; }
 });
 $("#btnResetMonth").addEventListener("click", ()=>{
   if(!confirm("Стереть все данные за текущий месяц?")) return;
-  localStorage.removeItem(KEY);
-  state.data = loadMonth(state.data.year, state.data.month);
-  state.selectedDate=null;
-  initUI();
+  localStorage.removeItem(KEY); state.data=loadMonth(state.data.year,state.data.month); state.selected=null;
+  updateMonthHeader(); renderCalendar(); renderDayPanel(); renderHolidaysTab(); renderTotals(); bindSettings(); renderAvgDailyAuto();
 });
 
-// сегодня
-$("#btnToday").addEventListener("click", ()=>{
-  const t=new Date();
-  if(t.getFullYear()!==state.data.year || t.getMonth()!==state.data.month){
-    state.data = loadMonth(t.getFullYear(), t.getMonth());
-    yearInput.value=String(state.data.year);
-    monthSelect.value=String(state.data.month);
-  }
-  state.selectedDate = ymd(t.getFullYear(), t.getMonth(), t.getDate());
-  saveMonth(state.data);
-  renderAll();
-});
-
-// PWA: регистрация SW и кнопка установки
+/* ==== PWA ==== */
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
     if(location.search.includes("kill-sw")){
-      navigator.serviceWorker.getRegistrations().then(regs=>{
-        regs.forEach(r=>r.unregister());
-        caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).finally(()=>location.replace(location.pathname+"?v="+Date.now()));
-      }); return;
+      navigator.serviceWorker.getRegistrations().then(rs=>{rs.forEach(r=>r.unregister()); caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).finally(()=>location.replace(location.pathname+"?v="+Date.now()));});
+      return;
     }
-    navigator.serviceWorker.register("./sw.js", {scope:"./"}).catch(()=>{});
+    navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(()=>{});
   });
 }
 let deferredPrompt=null;
@@ -621,17 +486,12 @@ $("#btnInstall").addEventListener("click", async ()=>{
   deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; $("#btnInstall").style.display="none";
 });
 $("#btnUpdate").addEventListener("click", async ()=>{
-  try{
-    const regs=await navigator.serviceWorker.getRegistrations();
-    await Promise.all(regs.map(r=>r.unregister())); const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k)));
-  } finally { location.reload(); }
+  try{ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); } finally { location.reload(); }
 });
 
-// сетевой статус
-function setNet(){ $("#netState").textContent = navigator.onLine? "онлайн":"оффлайн"; }
-window.addEventListener("online", setNet); window.addEventListener("offline", setNet); setNet();
-
-// init
+/* ==== START ==== */
+setTab("journal");
+(function initSelected(){ const t=new Date(); state.selected=ymd(state.data.year,state.data.month, Math.min(t.getDate(), daysInMonth(state.data.year,state.data.month))); })();
 initUI();
 </script>
 </body>
