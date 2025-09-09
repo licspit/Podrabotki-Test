@@ -1,43 +1,58 @@
-// sw.js — сеть в приоритете для index.html, жёсткое обновление кэша
-const CACHE = 'podrabotki-v9-2025-09-05';
+/* PWA Service Worker — офлайн для GitHub Pages под-пути. */
+const SW_VERSION = "v1.2.0";
+const RUNTIME_CACHE = `rt-${SW_VERSION}`;
+const HTML_FALLBACK_URL = "./index.html";
 
-const PRECACHE = ['/', './', './index.html'];
-
-self.addEventListener('install', (e) => {
-  self.skipWaiting();
-  e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(PRECACHE))
-  );
+self.addEventListener("install", (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(RUNTIME_CACHE);
+    await cache.add(new Request(HTML_FALLBACK_URL, { cache: "reload" }));
+    await self.skipWaiting();
+  })());
 });
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k === RUNTIME_CACHE ? null : caches.delete(k))));
+    await self.clients.claim();
+  })());
 });
 
-// Для переходов (navigate) — сначала сеть, при оффлайне — кэшированный index.html
-self.addEventListener('fetch', (e) => {
-  const req = e.request;
+function isHtmlNavigation(event) {
+  const req = event.request;
+  return req.mode === "navigate" ||
+         (req.method === "GET" && (req.headers.get("accept") || "").includes("text/html"));
+}
 
-  // Главная навигация -> index.html
-  if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy));
-          return res;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (isHtmlNavigation(event)) {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(request);
+        return fresh;
+      } catch {
+        const cache = await caches.open(RUNTIME_CACHE);
+        const cached = await cache.match(HTML_FALLBACK_URL);
+        return cached || new Response("Оффлайн", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      }
+    })());
     return;
   }
 
-  // Остальное: cache-first с подстановкой из сети при отсутствии в кэше
-  e.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
-  );
+  if (request.method === "GET") {
+    event.respondWith((async () => {
+      const cache = await caches.open(RUNTIME_CACHE);
+      const cached = await cache.match(request);
+      const network = fetch(request).then((resp) => {
+        if (resp && resp.ok && resp.type === "basic") cache.put(request, resp.clone()).catch(() => {});
+        return resp;
+      }).catch(() => null);
+      return cached || (await network) || new Response("", { status: 504 });
+    })());
+  }
 });
