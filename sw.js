@@ -1,5 +1,5 @@
 /* PWA Service Worker — офлайн для GitHub Pages под-пути. */
-const SW_VERSION = "v1.2.0";
+const SW_VERSION = "v2.0.0";
 const RUNTIME_CACHE = `rt-${SW_VERSION}`;
 const HTML_FALLBACK_URL = "./index.html";
 
@@ -32,10 +32,8 @@ self.addEventListener("fetch", (event) => {
 
   if (isHtmlNavigation(event)) {
     event.respondWith((async () => {
-      try {
-        const fresh = await fetch(request);
-        return fresh;
-      } catch {
+      try { return await fetch(request); }
+      catch {
         const cache = await caches.open(RUNTIME_CACHE);
         const cached = await cache.match(HTML_FALLBACK_URL);
         return cached || new Response("Оффлайн", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
