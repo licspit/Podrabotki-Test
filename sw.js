@@ -1,56 +1,70 @@
-/* Service Worker: офлайн + кэш для GitHub Pages под-пути */
-const SW_VERSION = "v2.1.0";
-const RUNTIME_CACHE = `rt-${SW_VERSION}`;
-const HTML_FALLBACK_URL = "./index.html";
+/* sw.js – PayCalc v4 (offline + автообновление) */
+const VERSION = 'v4-autoavg-1';
+const STATIC_CACHE = `paycalc-static-${VERSION}`;
+const RUNTIME_CACHE = `paycalc-runtime-${VERSION}`;
 
-self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(RUNTIME_CACHE);
-    await cache.add(new Request(HTML_FALLBACK_URL, { cache: "reload" }));
-    await self.skipWaiting();
-  })());
+const PRECACHE_URLS = [
+  './',
+  './index.html',
+  './favicon.ico',
+];
+
+function isHTML(request) {
+  const url = new URL(request.url);
+  return request.mode === 'navigate' ||
+         (request.headers.get('accept') || '').includes('text/html') ||
+         url.pathname.endsWith('/') ||
+         url.pathname.endsWith('.html');
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener("activate", (event) => {
+self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k === RUNTIME_CACHE ? null : caches.delete(k))));
+    await Promise.all(
+      keys.filter((k) => k.startsWith('paycalc-') && ![STATIC_CACHE, RUNTIME_CACHE].includes(k))
+          .map((k) => caches.delete(k))
+    );
     await self.clients.claim();
   })());
 });
 
-function isHtmlNavigation(event) {
-  const req = event.request;
-  return req.mode === "navigate" ||
-         (req.method === "GET" && (req.headers.get("accept") || "").includes("text/html"));
-}
-
-self.addEventListener("fetch", (event) => {
+self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  if (request.method !== 'GET') return;
 
-  if (isHtmlNavigation(event)) {
+  if (isHTML(request)) {
     event.respondWith((async () => {
-      try { return await fetch(request); }
-      catch {
-        const cache = await caches.open(RUNTIME_CACHE);
-        const cached = await cache.match(HTML_FALLBACK_URL);
-        return cached || new Response("Оффлайн", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      try {
+        const fresh = await fetch(request, { cache: 'no-store' });
+        const cache = await caches.open(STATIC_CACHE);
+        cache.put('./index.html', fresh.clone());
+        return fresh;
+      } catch {
+        const cached = await caches.match('./index.html') || await caches.match(request);
+        return cached || new Response('<h1>Offline</h1>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
       }
     })());
     return;
   }
 
-  if (request.method === "GET") {
-    event.respondWith((async () => {
-      const cache = await caches.open(RUNTIME_CACHE);
-      const cached = await cache.match(request);
-      const network = fetch(request).then((resp) => {
-        if (resp && resp.ok && resp.type === "basic") cache.put(request, resp.clone()).catch(() => {});
-        return resp;
-      }).catch(() => null);
-      return cached || (await network) || new Response("", { status: 504 });
-    })());
-  }
+  event.respondWith((async () => {
+    const cache = await caches.open(RUNTIME_CACHE);
+    const cached = await cache.match(request);
+    const network = fetch(request).then((resp) => {
+      if (resp && resp.status === 200 && resp.type === 'basic') cache.put(request, resp.clone());
+      return resp;
+    }).catch(() => null);
+    return cached || network || new Response('', { status: 504 });
+  })());
+});
+
+self.addEventListener('message', (event) => {
+  if ((event.data||{}).action === 'skipWaiting' && self.skipWaiting) self.skipWaiting();
 });
