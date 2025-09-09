@@ -553,5 +553,13 @@ let hYear=state.year, hMonth=state.month;
 renderHolidaysCalendar(hYear,hMonth);
 renderDayDetails(state.selectedDate);
 </script>
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('./sw.js?v=2025-09-05-2')   // ← меняй хвост версии при каждом деплое
+      .then(reg => reg.update())
+      .catch(console.error);
+  }
+</script>
 </body>
 </html>
