@@ -1,5 +1,5 @@
-/* PWA Service Worker — офлайн для GitHub Pages под-пути. */
-const SW_VERSION = "v2.0.0";
+/* Service Worker: офлайн + кэш для GitHub Pages под-пути */
+const SW_VERSION = "v2.1.0";
 const RUNTIME_CACHE = `rt-${SW_VERSION}`;
 const HTML_FALLBACK_URL = "./index.html";
 
