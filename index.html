@@ -50,8 +50,26 @@
   .field{display:flex;flex-direction:column;gap:6px}
 
   /* Календарь */
-  .cal-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:6px}
-  .cal-title{font-weight:800;font-size:22px;text-align:center}
+  /* calendar */
+.cal-head{
+  display:grid;
+  grid-template-columns:auto 1fr auto; /* кнопка | заголовок | кнопка */
+  align-items:center;
+  gap:12px;
+  width:100%;
+}
+.cal-title{
+  font-weight:800;
+  font-size:22px;
+  text-align:center;
+  line-height:1.1;
+  min-width:0;           /* важно: даёт заголовку право сжиматься/переноситься */
+  word-break:keep-all;   /* нормальный перенос */
+}
+.cal-head .btn:first-child{ justify-self:start; }
+.cal-head .btn:last-child{  justify-self:end;  }
+/* на всякий случай не позволяем кнопкам выпирать */
+.cal-head .btn{ max-width:100%; }
   .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:6px 0 8px;color:var(--mut)}
   .cal-dow span{text-align:center}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
