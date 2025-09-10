@@ -315,18 +315,23 @@ document.getElementById('saveSettings').onclick=()=>{
 };
 
 /* ADD / UPDATE / DELETE */
-function addOrUpdateWork(dateISO, hours){
-  const list=loadEntries();
-  const idx=list.findIndex(e=>e.date===dateISO && e.kind==='work');
-  const rec={ id: idx>-1?list[idx].id:makeId(), date:dateISO, kind:'work', hours(Number(hours)||0) };
-  if(idx>-1){ list[idx]=rec } else { list.push(rec) }
+function addOrUpdateWork(dateISO, hoursVal){
+  const list = loadEntries();
+  const idx  = list.findIndex(e => e.date === dateISO && e.kind === 'work');
+  const rec  = {
+    id:   idx > -1 ? list[idx].id : makeId(),
+    date: dateISO,
+    kind: 'work',
+    hours: Number(hoursVal) || 0
+  };
+  if (idx > -1) list[idx] = rec; else list.push(rec);
   saveEntries(list);
 }
 function hours(n){ return Number(n)||0 } // мелкий хелпер
 
-function addOffHours(dateISO,hoursVal){
-  const list=loadEntries();
-  list.push({ id:makeId(), date:dateISO, kind:'offHours', hours:hours(hoursVal) });
+function addOffHours(dateISO, hoursVal){
+  const list = loadEntries();
+  list.push({ id: makeId(), date: dateISO, kind: 'offHours', hours: Number(hoursVal) || 0 });
   saveEntries(list);
 }
 function toggleVacation(dateISO){
