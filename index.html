@@ -57,15 +57,18 @@
     gap:12px;
     width:100%;
   }
-  .cal-title{
-    font-weight:800;
-    font-size:22px;       /* стартовый размер — далее уменьшим JS-ом при нехватке места */
-    text-align:center;
-    line-height:1.1;
-    white-space:nowrap;   /* всегда одна строка */
-    overflow:visible;     /* ничего не обрезаем */
-    min-width:0;          /* разрешаем сжиматься в grid */
-  }
+  .cal-title {
+  font-weight: 800;
+  font-size: 22px;   /* всегда одинаковый размер */
+  text-align: center;
+  line-height: 1.2;
+}
+.cal-title .year {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 2px;
+}
   .cal-head .btn:first-child{ justify-self:start; }
   .cal-head .btn:last-child{  justify-self:end;  }
   .cal-head .btn{ max-width:100%; }
@@ -327,7 +330,6 @@ function addOrUpdateWork(dateISO, hoursVal){
   if (idx > -1) list[idx] = rec; else list.push(rec);
   saveEntries(list);
 }
-function hours(n){ return Number(n)||0 } // мелкий хелпер
 
 function addOffHours(dateISO, hoursVal){
   const list = loadEntries();
@@ -379,8 +381,7 @@ function renderCalendar(y,m){
 const d = new Date(y,m,1);
 const month = d.toLocaleDateString('ru-RU',{month:'long'});
 const year  = d.getFullYear();
-titleEl.innerHTML = `${month}<br><span style="font-size:16px;font-weight:500">${year} г.</span>`;
-  fitCalTitle(titleEl); // ← подгоняем шрифт
+titleEl.innerHTML = `${month}<span class="year">${year} г.</span>`;
 
   document.getElementById('cal-dow').innerHTML =
     ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
@@ -513,8 +514,7 @@ function renderHolidaysCalendar(y,m){
 const d = new Date(y,m,1);
 const month = d.toLocaleDateString('ru-RU',{month:'long'});
 const year  = d.getFullYear();
-t.innerHTML = `${month}<br><span style="font-size:16px;font-weight:500">${year} г.</span>`;
-  fitCalTitle(titleEl); // ← подгоняем шрифт
+t.innerHTML = `${month}<span class="year">${year} г.</span>`;
 
   document.getElementById('h-dow').innerHTML =
     ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
@@ -581,12 +581,6 @@ renderCalendar(state.year,state.month);
 renderDayDetails(state.selectedDate);
 renderHolidaysCalendarInit();
 updateWorkdaysForCurrentMonth();
-
-/* Пересчитать заголовки при ресайзе/смене ориентации */
-window.addEventListener('resize', () => {
-  fitCalTitle(document.getElementById('cal-title'));
-  fitCalTitle(document.getElementById('h-title'));
-});
 
 /* PWA register */
 if('serviceWorker' in navigator){
