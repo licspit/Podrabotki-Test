@@ -74,6 +74,32 @@ input, select { font-size:16px; }
   color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
+/* --- Импорт: ровная сетка --- */
+.import-grid{
+  display:grid;
+  grid-template-columns: 200px 1fr; /* левая узкая колонка + правая растяжимая */
+  grid-auto-rows: 44px;
+  column-gap:12px;
+  row-gap:12px;
+  align-items:center;
+}
+
+/* делаем .file-wrap «сквозной», чтобы её дети легли в сетку родителя */
+.import-grid .file-wrap{ display: contents; }
+
+/* явно кладём элементы по колонкам */
+.import-grid .file-btn   { grid-column: 1; justify-self:start; }
+.import-grid .file-name  { grid-column: 2; }
+.import-grid .export-btn { grid-column: 1; justify-self:start; }
+.import-grid .import-btn { grid-column: 1; justify-self:start; }
+
+@media (max-width: 560px){
+  .import-grid{
+    grid-template-columns: 1fr;      /* одна колонка на мобилках */
+    grid-auto-rows:auto;
+  }
+  .import-grid .file-name{ grid-column:auto; }
+}
       
   /* Поле + кнопка — строго в линию */
   .field-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
@@ -242,18 +268,16 @@ input, select { font-size:16px; }
     <!-- IMPORT -->
 <section id="import" class="tabpage" hidden>
   <div class="card">
-    <div class="row wrap">
-      <button class="btn" id="btnExport">Экспорт JSON</button>
-    </div>
+    <div class="import-grid">
+      <button class="btn export-btn" id="btnExport">Экспорт JSON</button>
 
-    <div class="file-wrap mt-8">
-      <label for="file" class="btn">Выбрать файл</label>
-      <span class="file-name" id="fileName">файл не выбран</span>
-      <input id="file" type="file" accept="application/json" class="file-input">
-    </div>
+      <div class="file-wrap">
+        <label for="file" class="btn file-btn">Выбрать файл</label>
+        <span class="file-name" id="fileName" aria-live="polite">файл не выбран</span>
+        <input id="file" type="file" accept="application/json" class="file-input">
+      </div>
 
-    <div class="row mtt">
-      <button class="btn primary" id="btnImport">Импорт</button>
+      <button class="btn primary import-btn" id="btnImport">Импорт</button>
     </div>
 
     <div class="mut mtt">Экспорт включает записи, праздники и базовые настройки.</div>
