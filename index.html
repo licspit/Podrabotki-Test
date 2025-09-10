@@ -25,20 +25,27 @@
   .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin:12px 0}
   .row{display:flex;gap:12px;align-items:center}
   .row.wrap{flex-wrap:wrap}
-  .grow{flex:1}
-  .btn{border:1px solid var(--border);background:#1f2937;color:var(--text);border-radius:14px;padding:10px 14px;cursor:pointer}
+  .grow{flex:1;min-width:0}
+  .btn{border:1px solid var(--border);background:#1f2937;color:var(--text);border-radius:14px;padding:0 14px;cursor:pointer;height:44px}
   .btn.primary{background:var(--accent);border-color:var(--accent-2)}
   .btn.danger{background:#3a0d12;border-color:#7f1d1d}
   .btn:disabled{opacity:.5;cursor:not-allowed}
-  input,select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:#0e1420;color:var(--text)}
+  input,select{width:100%;padding:0 14px;border-radius:12px;border:1px solid var(--border);background:#0e1420;color:var(--text);height:44px}
   .mut{color:var(--mut)}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:780px){.grid-3{grid-template-columns:1fr}}
   .quick{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
-  .quick .btn{padding:16px 8px}
+  .quick .btn{padding:16px 8px;height:48px}
   .pill{display:inline-flex;align-items:center;gap:6px;background:var(--pill);padding:6px 10px;border-radius:999px;border:1px solid var(--border)}
   .mtt{margin-top:8px}
-  .mt-12{margin-top:12px}
+  .mt-8{margin-top:8px}
   .section-title{font-weight:700;margin:2px 0 8px}
+
+  /* ровное выравнивание поля + кнопки в одну линию */
+  .field-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+  .field{display:flex;flex-direction:column;gap:6px}
+
   /* calendar */
   .cal-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:6px}
   .cal-title{font-weight:800;font-size:22px;text-align:center}
@@ -75,23 +82,25 @@
     <!-- JOURNAL -->
     <section id="journal" class="tabpage">
       <div class="card">
-        <div class="row wrap">
-          <div class="grow">
+        <!-- Дата -->
+        <div class="field-row">
+          <div class="field">
             <div class="mut">Дата</div>
             <input id="dt" readonly>
           </div>
-          <div><button class="btn" id="btnToday">Сегодня</button></div>
+          <button class="btn" id="btnToday">Сегодня</button>
         </div>
 
-        <div class="row wrap mt-12">
-          <div class="grow">
+        <!-- Часы -->
+        <div class="field-row mt-8">
+          <div class="field">
             <div class="mut">Часы</div>
             <input id="hours" inputmode="decimal" placeholder="напр., 3.5">
           </div>
-          <div><button class="btn primary" id="btnAdd">Добавить</button></div>
+          <button class="btn primary" id="btnAdd">Добавить</button>
         </div>
 
-        <div class="section-title mt-12">Быстрые кнопки:</div>
+        <div class="section-title mt-8">Быстрые кнопки:</div>
         <div class="quick" id="quick">
           <button class="btn" data-qk="hrs-3.5">3.5 ч</button>
           <button class="btn" data-qk="hrs-8">8 ч</button>
@@ -125,27 +134,25 @@
     <!-- SETTINGS -->
     <section id="settings" class="tabpage" hidden>
       <div class="card">
-        <div class="row wrap">
-          <div class="grow">
+        <div class="grid-3">
+          <div>
             <div class="mut">Оклад, ₽ (на руки)</div>
             <input id="salary" inputmode="numeric" value="97000">
           </div>
-          <div class="grow">
-            <div class="mut">Рабочих дней в месяце (Пн–Пт)</div>
-            <input id="workdays" inputmode="numeric" value="22">
+          <div>
+            <div class="mut">Рабочих дней в текущем месяце (Пн–Пт минус праздники)</div>
+            <input id="workdays" inputmode="numeric" readonly>
           </div>
-          <div class="grow">
+          <div>
             <div class="mut">Часов в день</div>
             <input id="hoursPerDay" inputmode="numeric" value="8">
           </div>
         </div>
-        <div class="row mtt">
-          <div class="grow">
-            <div class="mut">Среднедневной (для отпуска), ₽ — необязательное поле</div>
-            <input id="avgDaily" inputmode="decimal" placeholder="если пусто — считаем автоматически за 12 мес.">
-          </div>
+        <div class="mtt">
+          <div class="mut">Среднедневной (для отпуска), ₽ — необязательное поле</div>
+          <input id="avgDaily" inputmode="decimal" placeholder="если пусто — считаем автоматически за 12 мес.">
         </div>
-        <div class="row mt-12">
+        <div class="row mtt">
           <button class="btn primary" id="saveSettings">Сохранить настройки</button>
         </div>
       </div>
@@ -208,6 +215,26 @@ const state = {
   holidays: loadHolidays()
 };
 
+/* === util === */
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate() }
+function isWeekday(y,m,d){ const dow=new Date(y,m,d).getDay(); return dow>=1 && dow<=5; }
+
+/* рабочие дни (Пн–Пт, минус праздники будни) */
+function computeWorkdays(y,m){
+  const days=daysInMonth(y,m);
+  let wd=0;
+  for(let d=1; d<=days; d++) if(isWeekday(y,m,d)) wd++;
+  const hol=(state.holidays[ymStr(y,m)]||[]);
+  const weekdayHols=hol.filter(d=>isWeekday(y,m,d)).length;
+  return Math.max(0, wd - weekdayHols);
+}
+function updateWorkdaysForCurrentMonth(){
+  const wd = computeWorkdays(state.year, state.month);
+  settings.workdays = wd;               // держим в настройках актуальное значение
+  saveSettingsObj(settings);
+  const el=document.getElementById('workdays'); if(el) el.value = wd;
+}
+
 /* ================== TABS ================== */
 const tabBtns=[...document.querySelectorAll('.tab')];
 const tabPages=[...document.querySelectorAll('.tabpage')];
@@ -217,26 +244,30 @@ tabBtns.forEach(b=>b.onclick=()=>{
   b.classList.add('active');
   document.getElementById(b.dataset.tab).hidden=false;
   if(b.dataset.tab==='holidays'){renderHolidaysCalendar(hYear,hMonth)}
+  if(b.dataset.tab==='settings'){updateWorkdaysForCurrentMonth()}
 });
 
 function setTodayUi(){
   document.getElementById('dt').value = new Date(state.selectedDate)
     .toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
 }
+
+/* Кнопка «Сегодня» */
 document.getElementById('btnToday').onclick=()=>{
   const t = new Date();
   state.year=t.getFullYear(); state.month=t.getMonth(); state.selectedDate=ymd(t);
   setTodayUi(); renderCalendar(state.year,state.month); renderDayDetails(state.selectedDate);
+  updateWorkdaysForCurrentMonth();
 };
 
 /* ================== SETTINGS UI ================== */
 document.getElementById('salary').value = settings.salary;
-document.getElementById('workdays').value = settings.workdays;
 document.getElementById('hoursPerDay').value = settings.hoursPerDay;
 document.getElementById('avgDaily').value = settings.avgDaily??'';
+updateWorkdaysForCurrentMonth();
+
 document.getElementById('saveSettings').onclick=()=>{
   settings.salary=Number(document.getElementById('salary').value||0);
-  settings.workdays=Number(document.getElementById('workdays').value||0);
   settings.hoursPerDay=Number(document.getElementById('hoursPerDay').value||0);
   const a = document.getElementById('avgDaily').value.trim();
   settings.avgDaily = a===''?null:Number(a.replace(',','.'))||null;
@@ -295,8 +326,6 @@ document.getElementById('quick').onclick=(ev)=>{
 };
 
 /* ================== CALENDAR (journal) ================== */
-function daysInMonth(y,m){ return new Date(y,m+1,0).getDate() }
-
 function renderCalendar(y,m){
   document.getElementById('cal-title').textContent =
     new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
@@ -329,8 +358,8 @@ function renderCalendar(y,m){
     grid.appendChild(btn);
   }
 }
-document.getElementById('prevM').onclick=()=>{ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month) }
-document.getElementById('nextM').onclick=()=>{ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month) }
+document.getElementById('prevM').onclick=()=>{ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month); updateWorkdaysForCurrentMonth(); }
+document.getElementById('nextM').onclick=()=>{ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month); updateWorkdaysForCurrentMonth(); }
 
 /* ================== DAY LIST & TOTALS ================== */
 function bindDeleteButtons(){
@@ -445,7 +474,10 @@ function renderHolidaysCalendar(y,m){
       state.holidays[key]=list.sort((a,b)=>a-b);
       saveHolidays(state.holidays);
       renderHolidaysCalendar(y,m);
-      if(y===state.year && m===state.month) renderCalendar(state.year,state.month);
+      if(y===state.year && m===state.month){
+        renderCalendar(state.year,state.month);
+        updateWorkdaysForCurrentMonth(); // ← обновляем рабочие дни при выборе праздников
+      }
     };
     grid.appendChild(btn);
   }
@@ -474,6 +506,7 @@ document.getElementById('btnImport').onclick=()=>{
       }
       alert('Импорт выполнен');
       renderCalendar(state.year,state.month); renderDayDetails(state.selectedDate);
+      updateWorkdaysForCurrentMonth();
     }catch(e){ alert('Ошибка импорта: '+e.message) }
   };
   r.readAsText(f);
@@ -485,6 +518,7 @@ setTodayUi();
 renderCalendar(state.year,state.month);
 renderDayDetails(state.selectedDate);
 renderHolidaysCalendarInit();
+updateWorkdaysForCurrentMonth();
 
 /* PWA register */
 if('serviceWorker' in navigator){
