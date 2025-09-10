@@ -50,26 +50,26 @@
   .field{display:flex;flex-direction:column;gap:6px}
 
   /* Календарь */
-  /* calendar */
-.cal-head{
-  display:grid;
-  grid-template-columns:auto 1fr auto; /* кнопка | заголовок | кнопка */
-  align-items:center;
-  gap:12px;
-  width:100%;
-}
-.cal-title{
-  font-weight:800;
-  font-size:22px;
-  text-align:center;
-  line-height:1.1;
-  min-width:0;           /* важно: даёт заголовку право сжиматься/переноситься */
-  word-break:keep-all;   /* нормальный перенос */
-}
-.cal-head .btn:first-child{ justify-self:start; }
-.cal-head .btn:last-child{  justify-self:end;  }
-/* на всякий случай не позволяем кнопкам выпирать */
-.cal-head .btn{ max-width:100%; }
+  .cal-head{
+    display:grid;
+    grid-template-columns:auto 1fr auto; /* кнопка | заголовок | кнопка */
+    align-items:center;
+    gap:12px;
+    width:100%;
+  }
+  .cal-title{
+    font-weight:800;
+    font-size:22px;       /* стартовый размер — далее уменьшим JS-ом при нехватке места */
+    text-align:center;
+    line-height:1.1;
+    white-space:nowrap;   /* всегда одна строка */
+    overflow:visible;     /* ничего не обрезаем */
+    min-width:0;          /* разрешаем сжиматься в grid */
+  }
+  .cal-head .btn:first-child{ justify-self:start; }
+  .cal-head .btn:last-child{  justify-self:end;  }
+  .cal-head .btn{ max-width:100%; }
+
   .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:6px 0 8px;color:var(--mut)}
   .cal-dow span{text-align:center}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
@@ -92,14 +92,14 @@
     margin:6px 0;
   }
   .rowline .hours{ text-align:right }
-  .rowline .actions{ justify-self:end }   /* прижать кнопку к правому краю */
+  .rowline .actions{ justify-self:end }
 
   .money{text-align:right}
   .totals{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
   .totals .pill{background:#0f1625}
 
   @media (max-width:560px){
-    .rowline{ grid-template-columns:1fr 70px auto } /* компактнее на узких экранах */
+    .rowline{ grid-template-columns:1fr 70px auto }
     .cal-day{min-height:56px}
   }
 </style>
@@ -263,6 +263,19 @@ function updateWorkdaysForCurrentMonth(){
   const el=document.getElementById('workdays'); if(el) el.value = wd;
 }
 
+/* ====== автоподгон заголовка месяца (всегда одна строка) ====== */
+function fitCalTitle(el, maxPx = 22, minPx = 14) {
+  if (!el) return;
+  el.style.fontSize = maxPx + "px";      // сброс к максимуму
+  requestAnimationFrame(() => {
+    let size = maxPx;
+    while (size > minPx && el.scrollWidth > el.clientWidth) {
+      size -= 1;
+      el.style.fontSize = size + "px";
+    }
+  });
+}
+
 /* ================== TABS ================== */
 const tabBtns=[...document.querySelectorAll('.tab')];
 const tabPages=[...document.querySelectorAll('.tabpage')];
@@ -305,13 +318,15 @@ document.getElementById('saveSettings').onclick=()=>{
 function addOrUpdateWork(dateISO, hours){
   const list=loadEntries();
   const idx=list.findIndex(e=>e.date===dateISO && e.kind==='work');
-  const rec={ id: idx>-1?list[idx].id:makeId(), date:dateISO, kind:'work', hours:Number(hours)||0 };
+  const rec={ id: idx>-1?list[idx].id:makeId(), date:dateISO, kind:'work', hours(Number(hours)||0) };
   if(idx>-1){ list[idx]=rec } else { list.push(rec) }
   saveEntries(list);
 }
-function addOffHours(dateISO,hours){
+function hours(n){ return Number(n)||0 } // мелкий хелпер
+
+function addOffHours(dateISO,hoursVal){
   const list=loadEntries();
-  list.push({ id:makeId(), date:dateISO, kind:'offHours', hours:Number(hours)||0 });
+  list.push({ id:makeId(), date:dateISO, kind:'offHours', hours:hours(hoursVal) });
   saveEntries(list);
 }
 function toggleVacation(dateISO){
@@ -355,8 +370,11 @@ document.getElementById('quick').onclick=(ev)=>{
 
 /* CALENDAR */
 function renderCalendar(y,m){
-  document.getElementById('cal-title').textContent =
+  const titleEl = document.getElementById('cal-title');
+  titleEl.textContent =
     new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  fitCalTitle(titleEl); // ← подгоняем шрифт
+
   document.getElementById('cal-dow').innerHTML =
     ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
 
@@ -426,7 +444,7 @@ function calcTotals(dateISO){
   const list = loadEntries().filter(e => e.date.slice(0,7) === ym);
 
   let workH = 0, offH = 0;
-  const vacDays = []; // календарные дни отпуска (номера дней месяца)
+  const vacDays = [];
 
   list.forEach(e=>{
     if(e.kind === 'work') workH += Number(e.hours||0);
@@ -434,26 +452,17 @@ function calcTotals(dateISO){
     else if(e.kind === 'vacation') vacDays.push(Number(e.date.slice(8,10)));
   });
 
-  const rate = currentHourRate();               // почасовая из оклада
+  const rate = currentHourRate();
   const dayFromSalary = Number(settings.salary||0) / Math.max(1, Number(settings.workdays||22));
-
-  // Праздники текущего месяца (для вычитания из отпускных)
   const hol = state.holidays[ymStr(y,m)] || [];
 
-  // Дни отпуска, которые реально оплачиваются (календарные минус праздники)
   const vacPaidDays = vacDays.filter(d => !hol.includes(d)).length;
-
-  // Будние дни отпуска (такие дни «съедают» базу оклада)
   const vacWeekdays = vacDays.filter(d => isWeekday(y,m,d)).length;
 
   const payWork = workH * rate;
   const payVac  = avgDaily() * vacPaidDays;
 
-  // База: минус отгулы по часам и минус будние дни отпуска по дневной из оклада
-  const base = Math.max(0,
-    Number(settings.salary||0) - offH*rate - vacWeekdays*dayFromSalary
-  );
-
+  const base = Math.max(0, Number(settings.salary||0) - offH*rate - vacWeekdays*dayFromSalary);
   const total = base + payWork + payVac;
   return { workH, offH, vacPaidDays, vacWeekdays, rate, payWork, payVac, base, total };
 }
@@ -493,8 +502,11 @@ function renderDayDetails(dateISO){
 /* HOLIDAYS */
 let hYear=state.year, hMonth=state.month;
 function renderHolidaysCalendar(y,m){
-  document.getElementById('h-title').textContent =
+  const titleEl = document.getElementById('h-title');
+  titleEl.textContent =
     new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  fitCalTitle(titleEl); // ← подгоняем шрифт
+
   document.getElementById('h-dow').innerHTML =
     ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<span>${d}</span>`).join('');
   const grid=document.getElementById('h-grid'); grid.innerHTML='';
@@ -560,6 +572,12 @@ renderCalendar(state.year,state.month);
 renderDayDetails(state.selectedDate);
 renderHolidaysCalendarInit();
 updateWorkdaysForCurrentMonth();
+
+/* Пересчитать заголовки при ресайзе/смене ориентации */
+window.addEventListener('resize', () => {
+  fitCalTitle(document.getElementById('cal-title'));
+  fitCalTitle(document.getElementById('h-title'));
+});
 
 /* PWA register */
 if('serviceWorker' in navigator){
