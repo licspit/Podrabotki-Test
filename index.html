@@ -376,8 +376,10 @@ document.getElementById('quick').onclick=(ev)=>{
 /* CALENDAR */
 function renderCalendar(y,m){
   const titleEl = document.getElementById('cal-title');
-  titleEl.textContent =
-    new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+const d = new Date(y,m,1);
+const month = d.toLocaleDateString('ru-RU',{month:'long'});
+const year  = d.getFullYear();
+titleEl.innerHTML = `${month}<br><span style="font-size:16px;font-weight:500">${year} г.</span>`;
   fitCalTitle(titleEl); // ← подгоняем шрифт
 
   document.getElementById('cal-dow').innerHTML =
@@ -507,9 +509,11 @@ function renderDayDetails(dateISO){
 /* HOLIDAYS */
 let hYear=state.year, hMonth=state.month;
 function renderHolidaysCalendar(y,m){
-  const titleEl = document.getElementById('h-title');
-  titleEl.textContent =
-    new Date(y,m,1).toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+  const t = document.getElementById('h-title');
+const d = new Date(y,m,1);
+const month = d.toLocaleDateString('ru-RU',{month:'long'});
+const year  = d.getFullYear();
+t.innerHTML = `${month}<br><span style="font-size:16px;font-weight:500">${year} г.</span>`;
   fitCalTitle(titleEl); // ← подгоняем шрифт
 
   document.getElementById('h-dow').innerHTML =
