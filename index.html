@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
 <title>Подработки и зарплата</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -24,6 +25,14 @@
   .row.wrap{flex-wrap:wrap}
   .grow{flex:1;min-width:0}
 
+  /* отключаем double-tap zoom на кликабельных элементах */
+html, body { touch-action: manipulation; }
+.btn, .tab, .cal-day, label, input, select {
+  touch-action: manipulation;
+}
+
+/* защита от зума при фокусе на инпутах в iOS: шрифт >= 16px */
+input, select { font-size:16px; }
   .btn{border:1px solid var(--border);background:#1f2937;color:var(--text);
        border-radius:14px;padding:0 14px;cursor:pointer;height:44px;white-space:nowrap}
   .btn.primary{background:var(--accent);border-color:var(--accent-2)}
@@ -264,19 +273,6 @@ function updateWorkdaysForCurrentMonth(){
   const wd = computeWorkdays(state.year, state.month);
   settings.workdays = wd; saveSettingsObj(settings);
   const el=document.getElementById('workdays'); if(el) el.value = wd;
-}
-
-/* ====== автоподгон заголовка месяца (всегда одна строка) ====== */
-function fitCalTitle(el, maxPx = 22, minPx = 14) {
-  if (!el) return;
-  el.style.fontSize = maxPx + "px";      // сброс к максимуму
-  requestAnimationFrame(() => {
-    let size = maxPx;
-    while (size > minPx && el.scrollWidth > el.clientWidth) {
-      size -= 1;
-      el.style.fontSize = size + "px";
-    }
-  });
 }
 
 /* ================== TABS ================== */
@@ -586,6 +582,17 @@ updateWorkdaysForCurrentMonth();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
 }
+  // Глушим быстрый повторный тап (двойной) — не даём браузеру включить зум
+(function preventDoubleTapZoom(){
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', function (e) {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();   // блокируем "второй" тап
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
+})();
 </script>
 </body>
 </html>
