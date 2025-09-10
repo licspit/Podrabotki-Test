@@ -54,6 +54,27 @@ input, select { font-size:16px; }
   .mt-8{margin-top:8px}
   .section-title{font-weight:700;margin:2px 0 8px}
 
+      /* --- Импорт: красивый файл-инпут --- */
+.file-wrap{
+  display:grid;
+  grid-template-columns:auto 1fr; /* кнопка | имя файла */
+  gap:12px;
+  align-items:center;
+}
+.file-input{
+  position:absolute;
+  width:1px;height:1px;overflow:hidden;
+  clip:rect(0 0 0 0); clip-path: inset(50%);
+  white-space:nowrap;border:0;padding:0;margin:-1px;
+}
+.file-name{
+  display:flex;align-items:center;
+  height:44px;padding:0 14px;border-radius:12px;
+  background:#0e1420;border:1px solid var(--border);
+  color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+      
   /* Поле + кнопка — строго в линию */
   .field-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
   .field{display:flex;flex-direction:column;gap:6px}
@@ -219,17 +240,25 @@ input, select { font-size:16px; }
     </section>
 
     <!-- IMPORT -->
-    <section id="import" class="tabpage" hidden>
-      <div class="card">
-        <div class="row wrap">
-          <button class="btn" id="btnExport">Экспорт JSON</button>
-          <input id="file" type="file" accept="application/json" class="mtt">
-          <button class="btn" id="btnImport">Импорт</button>
-        </div>
-        <div class="mut mtt">Экспорт включает записи, праздники и базовые настройки.</div>
-      </div>
-    </section>
+<section id="import" class="tabpage" hidden>
+  <div class="card">
+    <div class="row wrap">
+      <button class="btn" id="btnExport">Экспорт JSON</button>
+    </div>
+
+    <div class="file-wrap mt-8">
+      <label for="file" class="btn">Выбрать файл</label>
+      <span class="file-name" id="fileName">файл не выбран</span>
+      <input id="file" type="file" accept="application/json" class="file-input">
+    </div>
+
+    <div class="row mtt">
+      <button class="btn primary" id="btnImport">Импорт</button>
+    </div>
+
+    <div class="mut mtt">Экспорт включает записи, праздники и базовые настройки.</div>
   </div>
+</section>
 
 <script>
 /* ================== STATE & STORAGE ================== */
@@ -570,6 +599,15 @@ document.getElementById('btnImport').onclick=()=>{
   r.readAsText(f);
 };
 
+      // Показываем имя выбранного файла в UI
+const fileInput  = document.getElementById('file');
+const fileNameEl = document.getElementById('fileName');
+if (fileInput && fileNameEl){
+  fileInput.addEventListener('change', () => {
+    fileNameEl.textContent = fileInput.files?.[0]?.name || 'файл не выбран';
+  });
+}
+      
 /* INIT */
 function renderHolidaysCalendarInit(){ renderHolidaysCalendar(hYear,hMonth); }
 setTodayUi();
