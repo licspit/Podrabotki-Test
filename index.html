@@ -766,18 +766,28 @@ t.innerHTML = `${month}<span class="year">${year} г.</span>`;
     const btn=document.createElement('button'); btn.className='cal-day';
     const isHol=arr.includes(day);
     btn.innerHTML=`<span class="num">${day}</span><div class="badge">${isHol?'🎉':''}</div>`;
-    btn.onclick=()=>{
-      const list=state.holidays[key]||[];
-      const i=list.indexOf(day);
-      if(i>-1) list.splice(i,1); else list.push(day);
-      state.holidays[key]=list.sort((a,b)=>a-b);
-      saveHolidays(state.holidays);
-      renderHolidaysCalendar(y,m);
-      if(y===state.year && m===state.month){
-        renderCalendar(state.year,state.month);
-        updateWorkdaysForCurrentMonth();
-      }
-    };
+    btn.onclick = () => {
+  const list = state.holidays[key] || [];
+  const i = list.indexOf(day);
+  if (i > -1) list.splice(i, 1); else list.push(day);
+  state.holidays[key] = list.sort((a,b)=>a-b);
+  saveHolidays(state.holidays);
+
+  // Перерисовали сетку праздников
+  renderHolidaysCalendar(y, m);
+
+  // 1) ВСЕГДА обновляем "Рабочих дней в текущем месяце"
+  //    (текущий месяц = тот, что открыт в журнале)
+  updateWorkdaysForCurrentMonth();
+
+  // 2) Если правим именно тот месяц, который сейчас открыт в журнале —
+  //    перерисуем календарь и итоги за выбранный день,
+  //    чтобы ставка/итоги пересчитались сразу.
+  if (y === state.year && m === state.month) {
+    renderCalendar(state.year, state.month);
+    renderDayDetails(state.selectedDate);
+  }
+};
     grid.appendChild(btn);
   }
 }
