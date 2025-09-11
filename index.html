@@ -575,9 +575,31 @@ titleEl.innerHTML = `${month}<span class="year">${year} г.</span>`;
     grid.appendChild(btn);
   }
 }
-document.getElementById('prevM').onclick=()=>{ state.month--; if(state.month<0){state.month=11;state.year--} renderCalendar(state.year,state.month); updateWorkdaysForCurrentMonth(); }
-document.getElementById('nextM').onclick=()=>{ state.month++; if(state.month>11){state.month=0;state.year++} renderCalendar(state.year,state.month); updateWorkdaysForCurrentMonth(); }
+function setSelectedDateToMonth(y, m){
+  const prevDay = Number(state.selectedDate.slice(8,10)) || 1;
+  const dim = daysInMonth(y, m);
+  const day = Math.min(prevDay, dim);
+  state.selectedDate = `${y}-${pad2(m+1)}-${pad2(day)}`;
+  setTodayUi();
+}
+      
+document.getElementById('prevM').onclick = () => {
+  state.month--;
+  if (state.month < 0) { state.month = 11; state.year--; }
+  setSelectedDateToMonth(state.year, state.month);
+  renderCalendar(state.year, state.month);
+  renderDayDetails(state.selectedDate);
+  updateWorkdaysForCurrentMonth();
+};
 
+document.getElementById('nextM').onclick = () => {
+  state.month++;
+  if (state.month > 11) { state.month = 0; state.year++; }
+  setSelectedDateToMonth(state.year, state.month);
+  renderCalendar(state.year, state.month);
+  renderDayDetails(state.selectedDate);
+  updateWorkdaysForCurrentMonth();
+};
 /* TOTALS + LIST */
       /* ===== ARCHIVE: helpers for arbitrary month ===== */
 function hourRateFor(y,m){
