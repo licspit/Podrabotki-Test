@@ -717,7 +717,7 @@ function renderDayDetails(dateISO){
   else{
     html+=list.map(e=>{
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
-      const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул (часы)':'Отпуск');
+      const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул':'Отпуск');
       const hrs  = e.kind==='vacation'?'—':Number(e.hours||0).toFixed(2);
       return `<div class="rowline">
         <div><span class="pill">${icon}</span> ${title}</div>
