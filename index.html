@@ -494,7 +494,8 @@ body.no-scroll{overflow:hidden;height:100vh}
         <button class="btn" id="btnExport"><span class="ic">⬇️</span>Экспорт в JSON</button>
         <button class="btn primary" id="btnImport"><span class="ic">⬆️</span>Импортировать</button>
       </div>
-      <div class="hint" style="margin-top:12px">Экспорт сохраняет все записи смен, праздники и настройки в один файл — удобно для переноса на другое устройство или для резервной копии.</div>
+      <div class="hint" id="lastExportHint" style="margin-top:12px"></div>
+      <div class="hint" style="margin-top:6px">Экспорт сохраняет все записи смен, праздники и настройки в один файл — удобно для переноса на другое устройство или для резервной копии.</div>
     </div>
   </section>
 
@@ -545,13 +546,16 @@ function makeId(){return Math.random().toString(36).slice(2,9)+Date.now().toStri
 function fmtMoney(n){ const v = Number(n); return (Number.isFinite(v) ? Math.round(v*100)/100 : 0).toLocaleString('ru-RU',{maximumFractionDigits:0}) }
 function fmtHours(n){ const v = Number(n)||0; return (Math.round(v*100)/100).toString(); }
 
-const LS_KEYS = { entries:'entries', holidays:'holidays', settings:'settings' };
+const LS_KEYS = { entries:'entries', holidays:'holidays', settings:'settings', lastExport:'lastExport', lastBackupPrompt:'lastBackupPrompt' };
 function loadEntries(){try{return JSON.parse(localStorage.getItem(LS_KEYS.entries)||'[]')}catch(e){return[]}}
 function saveEntries(a){localStorage.setItem(LS_KEYS.entries,JSON.stringify(a))}
 function loadHolidays(){try{return JSON.parse(localStorage.getItem(LS_KEYS.holidays)||'{}')}catch(e){return{}}}
 function saveHolidays(m){localStorage.setItem(LS_KEYS.holidays,JSON.stringify(m))}
 function loadSettings(){try{return JSON.parse(localStorage.getItem(LS_KEYS.settings)||'{}')}catch(e){return{}}}
 function saveSettingsObj(o){localStorage.setItem(LS_KEYS.settings,JSON.stringify(o))}
+function getLastExport(){ return localStorage.getItem(LS_KEYS.lastExport); }
+function setLastExport(iso){ localStorage.setItem(LS_KEYS.lastExport, iso); }
+function daysSince(iso){ if(!iso) return Infinity; return Math.floor((Date.now() - parseISO(iso).getTime()) / 86400000); }
 
 /* default settings — workdays больше не хранится отдельно: считается на лету для нужного месяца.
    overtimeMode: 'flat' = все часы в будний день ×1.5; 'progressive' = первые 2ч ×1.5, дальше ×2.0 */
@@ -809,6 +813,7 @@ tabBtns.forEach(b=>b.onclick=()=>{
   document.getElementById(b.dataset.tab).hidden=false;
   if(b.dataset.tab==='holidays'){renderHolidaysCalendar(hYear,hMonth)}
   if(b.dataset.tab==='settings'){renderSettingsHints()}
+  if(b.dataset.tab==='import'){renderLastExportHint()}
   if(!modal.hidden) closeArchive();
 });
 
@@ -1268,11 +1273,33 @@ document.getElementById('btnProdCal').onclick = async function(){
 };
 
 /* ================== IMPORT / EXPORT ================== */
+function renderLastExportHint(){
+  const el = document.getElementById('lastExportHint');
+  if(!el) return;
+  const days = daysSince(getLastExport());
+  el.textContent = !Number.isFinite(days) ? 'Резервную копию ещё ни разу не делали.'
+    : days === 0 ? 'Последний экспорт: сегодня.'
+    : `Последний экспорт: ${days} дн. назад.`;
+  el.style.color = (!Number.isFinite(days) || days >= 14) ? 'var(--warn)' : '';
+}
+// Ненавязчивое напоминание про бэкап: данные лежат только в localStorage
+// устройства, при переустановке/очистке хранилища они не восстановить.
+function maybeShowBackupReminder(){
+  if(loadEntries().length === 0) return;
+  const days = daysSince(getLastExport());
+  if(days < 14) return;
+  const todayStr = ymd(new Date());
+  if(localStorage.getItem(LS_KEYS.lastBackupPrompt) === todayStr) return;
+  localStorage.setItem(LS_KEYS.lastBackupPrompt, todayStr);
+  toast(Number.isFinite(days) ? `💾 Бэкап не делали ${days} дн. — вкладка «Данные»` : '💾 Ещё не делали резервную копию — вкладка «Данные»');
+}
 document.getElementById('btnExport').onclick=()=>{
   const payload = { entries: loadEntries(), holidays: loadHolidays(), settings };
   const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='paycalc_data.json'; a.click();
   URL.revokeObjectURL(a.href);
+  setLastExport(ymd(new Date()));
+  renderLastExportHint();
   toast('Файл сохранён');
 };
 document.getElementById('btnImport').onclick=()=>{
@@ -1383,10 +1410,18 @@ renderCalendar(state.year,state.month);
 renderDayDetails(state.selectedDate);
 renderHolidaysCalendar(hYear,hMonth);
 renderHero();
+renderLastExportHint();
+maybeShowBackupReminder();
 
 /* PWA register */
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+
+// Просим браузер не вычищать localStorage при нехватке места на устройстве —
+// это единственная копия записей пользователя, без своего сервера.
+if ('storage' in navigator && navigator.storage.persist){
+  navigator.storage.persisted().then(already=>{ if(!already) navigator.storage.persist(); }).catch(()=>{});
 }
 
 // Глушим быстрый повторный тап — не даём браузеру включить зум
