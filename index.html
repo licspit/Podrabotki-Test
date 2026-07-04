@@ -284,6 +284,9 @@ body.no-scroll{overflow:hidden;height:100vh}
 /* ---------- Вложенная карточка отпуска (без лишней тени) ---------- */
 .vac-card{background:var(--bg-soft);box-shadow:none;border-style:dashed;padding:14px}
 
+/* ---------- Блок подтяжки производственного календаря ---------- */
+.prod-cal-box{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--radius-md);padding:13px}
+
 /* ---------- Notice / warnings ---------- */
 .notice{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;margin-top:10px}
 .notice.warn{background:var(--warn-soft);color:var(--warn)}
@@ -456,7 +459,19 @@ body.no-scroll{overflow:hidden;height:100vh}
     <div class="card">
       <h2>Праздничные дни</h2>
       <div class="hint" style="margin:0 0 12px">Отметьте праздники кликом по дню. Они не входят в норму рабочих дней и оплачиваются по повышенному коэффициенту, если в этот день была подработка.</div>
-      <div class="cal-head">
+
+      <div class="prod-cal-box">
+        <div class="row" style="gap:10px">
+          <label class="field" style="flex:0 0 110px">
+            <span class="lbl">Год</span>
+            <select id="prodCalYear"></select>
+          </label>
+          <button class="btn primary grow" id="btnProdCal"><span class="ic">📋</span>Подтянуть праздники РФ</button>
+        </div>
+        <div class="hint" id="prodCalHint" style="margin-top:8px"></div>
+      </div>
+
+      <div class="cal-head" style="margin-top:14px">
         <button class="btn icon-btn" id="hPrev" aria-label="Предыдущий месяц">◀</button>
         <div class="cal-title" id="h-title"></div>
         <button class="btn icon-btn" id="hNext" aria-label="Следующий месяц">▶</button>
@@ -514,12 +529,21 @@ body.no-scroll{overflow:hidden;height:100vh}
 
 <script>
 /* ================== STATE & STORAGE ================== */
-function ymd(d){return d.toISOString().slice(0,10)}
+// ВАЖНО: работаем с датами в локальном времени, без UTC-конверсии.
+// toISOString() переводит в UTC и в ночные часы (для UTC+3) сдвигает дату
+// на день назад — из-за этого записи уходили не на тот день. Форматируем вручную.
+function ymd(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+// Парсим 'YYYY-MM-DD' как локальную полночь, а не UTC (иначе getDay()/дата
+// съезжают в браузерах с отрицательным смещением от UTC).
+function parseISO(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
 function pad2(n){return String(n).padStart(2,'0')}
 function ymStr(y,m){return `${y}-${pad2(m+1)}`}
 function makeId(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
-function fmtMoney(n){ return (Math.round(n*100)/100).toLocaleString('ru-RU',{maximumFractionDigits:0}) }
-function fmtHours(n){ return Number(n||0).toFixed(2).replace(/\.00$/,'').replace(/0$/,m=>m) }
+function fmtMoney(n){ const v = Number(n); return (Number.isFinite(v) ? Math.round(v*100)/100 : 0).toLocaleString('ru-RU',{maximumFractionDigits:0}) }
+function fmtHours(n){ const v = Number(n)||0; return (Math.round(v*100)/100).toString(); }
 
 const LS_KEYS = { entries:'entries', holidays:'holidays', settings:'settings' };
 function loadEntries(){try{return JSON.parse(localStorage.getItem(LS_KEYS.entries)||'[]')}catch(e){return[]}}
@@ -568,6 +592,50 @@ const COEFF = {
   holiday: 2.0
 };
 
+/* ===== ПРОИЗВОДСТВЕННЫЙ КАЛЕНДАРЬ РФ =====
+   Нерабочие праздничные дни (ст.112 ТК РФ) с учётом переносов выходных,
+   утверждённых отдельным постановлением Правительства на каждый год.
+   Постановления выходят только на год вперёд (обычно осенью), поэтому
+   список ограничен годами, по которым уже есть официальные данные.
+   Формат: { месяц(1-12): [числа] }. Источник 2026 года: Постановление
+   Правительства РФ от 24.09.2025 №1466 + перенос по ч.2 ст.112 ТК РФ
+   (для дней, совпадающих с обычными выходными). */
+const RU_PRODUCTION_CALENDAR = {
+  2026: {
+    1: [1,2,5,6,7,8,9],   // новогодние каникулы + Рождество + перенос с 3 января
+    2: [23],               // День защитника Отечества
+    3: [8,9],               // Международный женский день + перенос (8 марта — воскресенье)
+    5: [1,9,11],            // Праздник Весны и Труда + День Победы + перенос (9 мая — субббота)
+    6: [12],                // День России
+    11: [4],                // День народного единства
+    12: [31]                 // перенесённый выходной в конце года
+  }
+};
+function availableProdCalYears(){
+  return Object.keys(RU_PRODUCTION_CALENDAR).map(Number).sort((a,b)=>a-b);
+}
+// Применяет производственный календарь года к state.holidays.
+// Существующие отметки в других годах не трогает; в выбранном году
+// объединяет (не затирает) с уже стоящими вручную отметками.
+function applyProductionCalendar(year){
+  const data = RU_PRODUCTION_CALENDAR[year];
+  if(!data) return null;
+  let added = 0, alreadyHad = 0;
+  Object.keys(data).forEach(monthStr=>{
+    const m = Number(monthStr)-1;
+    const key = ymStr(year, m);
+    const existing = state.holidays[key] || [];
+    const merged = existing.slice();
+    data[monthStr].forEach(day=>{
+      if(merged.includes(day)) { alreadyHad++; }
+      else { merged.push(day); added++; }
+    });
+    state.holidays[key] = merged.sort((a,b)=>a-b);
+  });
+  saveHolidays(state.holidays);
+  return { added, alreadyHad };
+}
+
 function isHolidayISO(dateISO){
   const y = Number(dateISO.slice(0,4));
   const m = Number(dateISO.slice(5,7)) - 1;
@@ -577,7 +645,7 @@ function isHolidayISO(dateISO){
 
 function dayTypeByISO(dateISO){
   if (isHolidayISO(dateISO)) return 'holiday'; // праздник приоритетнее дня недели
-  const dow = new Date(dateISO).getDay(); // 0=Вс..6=Сб
+  const dow = parseISO(dateISO).getDay(); // 0=Вс..6=Сб
   if (dow === 0) return 'sunday';
   if (dow === 6) return 'saturday';
   return 'weekday';
@@ -745,7 +813,7 @@ tabBtns.forEach(b=>b.onclick=()=>{
 });
 
 function setTodayUi(){
-  document.getElementById('dt').value = new Date(state.selectedDate)
+  document.getElementById('dt').value = parseISO(state.selectedDate)
     .toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
 }
 document.getElementById('btnToday').onclick=()=>{
@@ -825,18 +893,11 @@ function addOffHours(dateISO, hoursVal){
   list.push({ id: makeId(), date: dateISO, kind: 'offHours', hours: Number(hoursVal) || 0 });
   saveEntries(list);
 }
-function toggleVacation(dateISO){
-  const list=loadEntries();
-  const idx=list.findIndex(e=>e.date===dateISO && e.kind==='vacation');
-  if(idx>-1) list.splice(idx,1);
-  else list.push({ id:makeId(), date:dateISO, kind:'vacation', hours:0 });
-  saveEntries(list);
-}
 // Отмечает отпуск на N календарных дней начиная с startISO.
 // Не создаёт дублей: если день уже отмечен как отпуск — пропускает его.
 function addVacationRange(startISO, days){
   const list = loadEntries();
-  const start = new Date(startISO);
+  const start = parseISO(startISO);
   for(let i=0;i<days;i++){
     const d = new Date(start); d.setDate(start.getDate()+i);
     const iso = ymd(d);
@@ -894,7 +955,7 @@ const vacRangeHint = document.getElementById('vacRangeHint');
 
 function openVacForm(){
   vacForm.style.display = 'block';
-  vacStartInput.value = new Date(state.selectedDate).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+  vacStartInput.value = parseISO(state.selectedDate).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   vacDaysInput.value = '';
   vacDaysInput.focus();
   updateVacRangeHint();
@@ -905,7 +966,7 @@ function closeVacForm(){
 function updateVacRangeHint(){
   const days = Number(vacDaysInput.value)||0;
   if(days<=0){ vacRangeHint.textContent = 'Укажите длительность отпуска в календарных днях (включая выходные).'; return; }
-  const start = new Date(state.selectedDate);
+  const start = parseISO(state.selectedDate);
   const end = new Date(start); end.setDate(start.getDate()+days-1);
   const fmt = d => d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
   vacRangeHint.textContent = `Период: ${fmt(start)} — ${fmt(end)} (${days} дн.)`;
@@ -1037,7 +1098,7 @@ function renderHero(){
 function renderDayDetails(dateISO){
   const box=document.getElementById('day-list');
   const list=loadEntries().filter(e=>e.date===dateISO);
-  const label=new Date(dateISO).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  const label=parseISO(dateISO).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('day-title').textContent = `Записи · ${label}`;
 
   if(list.length===0){
@@ -1107,6 +1168,88 @@ function renderHolidaysCalendar(y,m){
 }
 document.getElementById('hPrev').onclick=()=>{ hMonth--; if(hMonth<0){hMonth=11;hYear--} renderHolidaysCalendar(hYear,hMonth) }
 document.getElementById('hNext').onclick=()=>{ hMonth++; if(hMonth>11){hMonth=0;hYear++} renderHolidaysCalendar(hYear,hMonth) }
+
+/* ---- Подтягивание производственного календаря РФ с xmlcalendar.ru ---- */
+(function initProdCalUI(){
+  const sel = document.getElementById('prodCalYear');
+  const curYear = new Date().getFullYear();
+  // предлагаем текущий год и ±1
+  [curYear-1, curYear, curYear+1].forEach(y=>{
+    const opt=document.createElement('option');
+    opt.value=y; opt.textContent=y;
+    if(y===curYear) opt.selected=true;
+    sel.appendChild(opt);
+  });
+})();
+
+document.getElementById('btnProdCal').onclick = async function(){
+  const year = Number(document.getElementById('prodCalYear').value);
+  const hint = document.getElementById('prodCalHint');
+  const btn  = this;
+
+  btn.disabled = true;
+  btn.textContent = 'Загрузка…';
+  hint.textContent = '';
+
+  try {
+    const res = await fetch(`https://xmlcalendar.ru/data/ru/${year}/calendar.json`);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // data.months[i].days — строка вида "1,2,3,9+,10*,..."
+    // Нужны только дни без суффикса * (сокр. день) — берём и * и +
+    // Но фильтруем по дню недели: добавляем в holidays только будние (пн–пт),
+    // потому что субботы/воскресенья уже учитываются в приложении как выходные.
+    let totalAdded = 0;
+
+    const holidays = {...state.holidays}; // копируем текущий state
+
+    for(const monthData of data.months){
+      const m = monthData.month - 1; // 0-based
+      const key = ymStr(year, m);
+      const existing = new Set(holidays[key] || []);
+
+      const dayStrs = monthData.days.split(',');
+      for(const ds of dayStrs){
+        if(ds.includes('*')) continue; // сокращённый день — пропускаем
+        const day = parseInt(ds, 10);
+        if(!day) continue;
+        const dow = new Date(year, m, day).getDay(); // 0=Вс, 6=Сб
+        // добавляем только если это будний день (праздник или перенесённый выходной в будни)
+        if(dow >= 1 && dow <= 5 && !existing.has(day)){
+          existing.add(day);
+          totalAdded++;
+        }
+      }
+      holidays[key] = [...existing].sort((a,b)=>a-b);
+    }
+
+    state.holidays = holidays;
+    saveHolidays(holidays);
+
+    // Обновляем интерфейс
+    renderHolidaysCalendar(hYear, hMonth);
+    renderCalendar(state.year, state.month);
+    renderDayDetails(state.selectedDate);
+    renderHero();
+    if(!document.getElementById('settings').hidden) renderSettingsHints();
+
+    hint.innerHTML = `<span style="color:var(--good)">✓ Загружено ${year} г. — добавлено праздников в будние дни: ${totalAdded}. Уже отмеченные дни не тронуты.</span>`;
+    toast(`Производственный календарь ${year} загружен`);
+
+  } catch(e) {
+    // При CORS-блокировке или офлайне браузер даёт бесполезный "Failed to fetch".
+    // Даём пользователю понятную подсказку вместо технической ошибки.
+    const isNetwork = (e instanceof TypeError) || /fetch|network|failed/i.test(e.message||'');
+    const msg = isNetwork
+      ? 'не удалось получить данные. Проверьте подключение к интернету. Если оно есть, сервис календаря временно недоступен — праздники можно отметить вручную кликом по дням ниже.'
+      : `${e.message}`;
+    hint.innerHTML = `<span style="color:var(--bad)">Ошибка загрузки: ${msg}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="ic">📋</span>Подтянуть праздники РФ';
+  }
+};
 
 /* ================== IMPORT / EXPORT ================== */
 document.getElementById('btnExport').onclick=()=>{
