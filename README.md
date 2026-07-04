@@ -17,18 +17,16 @@ install_and_run.bat
 
 **macOS/Linux**
 ```bash
-chmod +x install_and_run.sh
-./install_and_run.sh
+python3 -m http.server 8000
 ```
 Откройте http://localhost:8000
 
 ## Установка на устройство
-- **Android (Chrome/Edge):** меню → «Добавить на главный экран» или кнопка «⬇️ Установить».
+- **Android (Chrome/Edge):** меню → «Добавить на главный экран».
 - **iPhone/iPad (Safari):** «Поделиться → На экран Домой».
 
 ## Обновления и кэш
-- Кнопка **«🔄 Обновить»** в шапке снимает регистрацию SW, очищает кэш и перезагружает страницу.
-- Kill-switch вручную: добавьте `?kill-sw` к адресу страницы.
+Service Worker всегда запрашивает свежую версию `index.html` по сети и показывает кэш только офлайн, поэтому изменения страницы подхватываются автоматически при следующей загрузке — вручную сбрасывать кэш не требуется. Если нужно принудительно очистить кэш при отладке, сделайте это через DevTools → Application → Service Workers / Clear storage.
 
 ## Структура
 ```
@@ -38,5 +36,4 @@ chmod +x install_and_run.sh
 /icons/icon-192.png
 /icons/icon-512.png
 /install_and_run.bat
-/install_and_run.sh
 ```
