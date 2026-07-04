@@ -678,9 +678,34 @@ function hourRateFor(y,m){
   return sal/(wd*hpd);
 }
 
-// начисления за месяц (оклад + оплата подработок) — по ставке ЭТОГО месяца.
-// Раньше тут использовалась ставка "текущего открытого в журнале" месяца,
-// что искажало расчёт среднего заработка для отпуска.
+// база оклада за месяц с учётом вычетов (отгулы, будние дни отпуска) —
+// общая для totalsForMonth() и monthAccruals(), чтобы обе функции всегда
+// считали одну и ту же величину одинаково, а не расходились между собой.
+function monthBase(y,m){
+  const ym = ymStr(y,m);
+  const list = loadEntries().filter(e => e.date.slice(0,7) === ym);
+  const rate = hourRateFor(y,m);
+  const salary = Number(settings.salary||0);
+  const workdays = computeWorkdays(y,m);
+  const dayFromSalary = salary / Math.max(1, workdays);
+
+  let offH = 0, vacWeekdays = 0;
+  list.forEach(e=>{
+    if(e.kind === 'offHours') offH += Number(e.hours||0);
+    else if(e.kind === 'vacation'){
+      const d = Number(e.date.slice(8,10));
+      if(isWeekday(y,m,d) && !isHolidayDay(y,m,d)) vacWeekdays++;
+    }
+  });
+  return Math.max(0, salary - offH*rate - vacWeekdays*dayFromSalary);
+}
+
+// начисления за месяц (база с вычетами + оплата подработок) — по ставке
+// ЭТОГО месяца. Используется для среднего заработка (ст.139 ТК РФ) — период
+// самого отпуска в расчёт среднего не входит (п.5 Постановления №922),
+// поэтому отпускные (payVac) сюда намеренно не добавляются.
+// Раньше здесь брался оклад без вычета отгулов/отпуска того месяца, из-за
+// чего показанные отпускные могли быть выше фактически начисленных сумм.
 function monthAccruals(y,m){
   const ym = ymStr(y,m);
   const list = loadEntries().filter(e => e.date.slice(0,7) === ym);
@@ -688,7 +713,7 @@ function monthAccruals(y,m){
   const overtimePay = list
     .filter(e => e.kind === 'work')
     .reduce((sum, e) => sum + payForWorkEntry(e, rate), 0);
-  return Number(settings.salary||0) + overtimePay;
+  return monthBase(y,m) + overtimePay;
 }
 
 // есть ли у месяца реальные данные (хоть одна запись) — нужно, чтобы
@@ -751,7 +776,6 @@ function totalsForMonth(y,m){
 
   const workdays = computeWorkdays(y,m);
   const rate = hourRateFor(y,m);
-  const dayFromSalary = Number(settings.salary||0) / Math.max(1, workdays);
 
   const vacHolidayDays = vacDays.filter(d => isHolidayDay(y,m,d));
   const vacCalendarDays = vacDays.filter(d => !isHolidayDay(y,m,d)); // оплачиваемые дни отпуска
@@ -764,7 +788,7 @@ function totalsForMonth(y,m){
   const avgD = avgDailyFor(y,m);
   const payVac = avgD * vacCalendarDays.length;
 
-  const base = Math.max(0, Number(settings.salary||0) - offH*rate - vacWeekdays.length*dayFromSalary);
+  const base = monthBase(y,m);
   // total — сумма без отпускных (база + подработки), это основная цифра в журнале.
   // totalPayout — полная сумма к выплате, включая отпускные (используется в архиве).
   const total = base + payWork;
