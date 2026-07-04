@@ -517,7 +517,7 @@ body.no-scroll{overflow:hidden;height:100vh}
       </label>
       <button class="btn primary wide" id="archShow">Показать</button>
     </div>
-    <div class="small-note">Расчёт строится по вашим записям (подработки, отгулы, отпуск) и текущим настройкам зарплаты — для каждого месяца используется ставка, действовавшая в этом месяце.</div>
+    <div class="small-note">Расчёт строится по вашим записям (подработки, отгулы, отпуск) и текущим настройкам зарплаты. Оклад и другие настройки не хранятся по месяцам — если они менялись, ко всем месяцам (включая прошлые) применяется текущее значение.</div>
     <div id="archResult"></div>
     <div class="row mtt" style="margin-top:12px">
       <button class="btn block" data-close>Закрыть</button>
@@ -1187,6 +1187,22 @@ document.getElementById('btnProdCal').onclick = async function(){
   const hint = document.getElementById('prodCalHint');
   const btn  = this;
 
+  // Встроенные официальные данные — применяются мгновенно, без сети.
+  // Раньше кнопка всегда шла в интернет за xmlcalendar.ru, а этот сервис
+  // не отдаёт CORS-заголовки, поэтому браузер блокировал запрос с любого
+  // чужого домена (GitHub Pages и т.п.) — кнопка не работала никогда.
+  if (RU_PRODUCTION_CALENDAR[year]) {
+    const { added, alreadyHad } = applyProductionCalendar(year);
+    renderHolidaysCalendar(hYear, hMonth);
+    renderCalendar(state.year, state.month);
+    renderDayDetails(state.selectedDate);
+    renderHero();
+    if(!document.getElementById('settings').hidden) renderSettingsHints();
+    hint.innerHTML = `<span style="color:var(--good)">✓ ${year} г. — добавлено праздников: ${added}${alreadyHad ? `, уже было отмечено: ${alreadyHad}` : ''}.</span>`;
+    toast(`Производственный календарь ${year} загружен`);
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Загрузка…';
   hint.textContent = '';
@@ -1242,7 +1258,7 @@ document.getElementById('btnProdCal').onclick = async function(){
     // Даём пользователю понятную подсказку вместо технической ошибки.
     const isNetwork = (e instanceof TypeError) || /fetch|network|failed/i.test(e.message||'');
     const msg = isNetwork
-      ? 'не удалось получить данные. Проверьте подключение к интернету. Если оно есть, сервис календаря временно недоступен — праздники можно отметить вручную кликом по дням ниже.'
+      ? `для ${year} года нет встроенных данных, а внешний сервис недоступен из браузера (нет интернета или сервис не разрешает запросы с чужих сайтов). Праздники можно отметить вручную кликом по дням ниже.`
       : `${e.message}`;
     hint.innerHTML = `<span style="color:var(--bad)">Ошибка загрузки: ${msg}</span>`;
   } finally {
