@@ -286,6 +286,12 @@ body.no-scroll{overflow:hidden;height:100vh}
 
 /* ---------- Блок подтяжки производственного календаря ---------- */
 .prod-cal-box{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--radius-md);padding:13px}
+/* На узких экранах кнопке рядом с фикс-шириной селектом года не хватало места,
+   и текст «Подтянуть праздники РФ» вылезал за границы кнопки (white-space:nowrap). */
+@media (max-width:480px){
+  .prod-cal-box .row{flex-wrap:wrap}
+  .prod-cal-box .row .btn{flex:1 1 100%}
+}
 
 /* ---------- Notice / warnings ---------- */
 .notice{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;margin-top:10px}
