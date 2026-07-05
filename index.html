@@ -930,15 +930,22 @@ function addOffHours(dateISO, hoursVal){
 }
 // Отмечает отпуск на N календарных дней начиная с startISO.
 // Не создаёт дублей: если день уже отмечен как отпуск — пропускает его.
+// Праздничные дни внутри периода не входят в число дней отпуска (ст.120 ТК РФ) —
+// отпуск на них "продлевается": сам праздничный день тоже отмечается (для
+// непрерывности периода в календаре), но не засчитывается в счётчик N дней,
+// поэтому диапазон растягивается ровно на число праздников внутри него.
 function addVacationRange(startISO, days){
   const list = loadEntries();
   const start = parseISO(startISO);
-  for(let i=0;i<days;i++){
+  let counted = 0, i = 0;
+  while(counted < days){
     const d = new Date(start); d.setDate(start.getDate()+i);
     const iso = ymd(d);
     if(!list.some(e=>e.date===iso && e.kind==='vacation')){
       list.push({ id:makeId(), date:iso, kind:'vacation', hours:0 });
     }
+    if(!isHolidayDay(d.getFullYear(), d.getMonth(), d.getDate())) counted++;
+    i++;
   }
   saveEntries(list);
 }
@@ -1002,9 +1009,18 @@ function updateVacRangeHint(){
   const days = Number(vacDaysInput.value)||0;
   if(days<=0){ vacRangeHint.textContent = 'Укажите длительность отпуска в календарных днях (включая выходные).'; return; }
   const start = parseISO(state.selectedDate);
-  const end = new Date(start); end.setDate(start.getDate()+days-1);
+  // Считаем конец диапазона так же, как addVacationRange: праздники внутри
+  // периода не входят в счёт N дней, поэтому период продлевается на них.
+  let counted = 0, i = 0, end = start, holidaysInside = 0;
+  while(counted < days){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    end = d;
+    if(isHolidayDay(d.getFullYear(), d.getMonth(), d.getDate())) holidaysInside++; else counted++;
+    i++;
+  }
   const fmt = d => d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
-  vacRangeHint.textContent = `Период: ${fmt(start)} — ${fmt(end)} (${days} дн.)`;
+  vacRangeHint.textContent = `Период: ${fmt(start)} — ${fmt(end)} (${days} дн. отпуска`
+    + (holidaysInside>0 ? ` + ${holidaysInside} праздничн., отпуск продлён)` : `)`);
 }
 vacDaysInput.addEventListener('input', updateVacRangeHint);
 document.getElementById('vacCancel').onclick = closeVacForm;
