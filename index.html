@@ -286,6 +286,12 @@ body.no-scroll{overflow:hidden;height:100vh}
 
 /* ---------- Блок подтяжки производственного календаря ---------- */
 .prod-cal-box{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--radius-md);padding:13px}
+/* На узких экранах кнопке рядом с фикс-шириной селектом года не хватало места,
+   и текст «Подтянуть праздники РФ» вылезал за границы кнопки (white-space:nowrap). */
+@media (max-width:480px){
+  .prod-cal-box .row{flex-wrap:wrap}
+  .prod-cal-box .row .btn{flex:1 1 100%}
+}
 
 /* ---------- Notice / warnings ---------- */
 .notice{display:flex;gap:10px;align-items:flex-start;padding:12px 13px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;margin-top:10px}
@@ -924,15 +930,22 @@ function addOffHours(dateISO, hoursVal){
 }
 // Отмечает отпуск на N календарных дней начиная с startISO.
 // Не создаёт дублей: если день уже отмечен как отпуск — пропускает его.
+// Праздничные дни внутри периода не входят в число дней отпуска (ст.120 ТК РФ) —
+// отпуск на них "продлевается": сам праздничный день тоже отмечается (для
+// непрерывности периода в календаре), но не засчитывается в счётчик N дней,
+// поэтому диапазон растягивается ровно на число праздников внутри него.
 function addVacationRange(startISO, days){
   const list = loadEntries();
   const start = parseISO(startISO);
-  for(let i=0;i<days;i++){
+  let counted = 0, i = 0;
+  while(counted < days){
     const d = new Date(start); d.setDate(start.getDate()+i);
     const iso = ymd(d);
     if(!list.some(e=>e.date===iso && e.kind==='vacation')){
       list.push({ id:makeId(), date:iso, kind:'vacation', hours:0 });
     }
+    if(!isHolidayDay(d.getFullYear(), d.getMonth(), d.getDate())) counted++;
+    i++;
   }
   saveEntries(list);
 }
@@ -996,9 +1009,18 @@ function updateVacRangeHint(){
   const days = Number(vacDaysInput.value)||0;
   if(days<=0){ vacRangeHint.textContent = 'Укажите длительность отпуска в календарных днях (включая выходные).'; return; }
   const start = parseISO(state.selectedDate);
-  const end = new Date(start); end.setDate(start.getDate()+days-1);
+  // Считаем конец диапазона так же, как addVacationRange: праздники внутри
+  // периода не входят в счёт N дней, поэтому период продлевается на них.
+  let counted = 0, i = 0, end = start, holidaysInside = 0;
+  while(counted < days){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    end = d;
+    if(isHolidayDay(d.getFullYear(), d.getMonth(), d.getDate())) holidaysInside++; else counted++;
+    i++;
+  }
   const fmt = d => d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
-  vacRangeHint.textContent = `Период: ${fmt(start)} — ${fmt(end)} (${days} дн.)`;
+  vacRangeHint.textContent = `Период: ${fmt(start)} — ${fmt(end)} (${days} дн. отпуска`
+    + (holidaysInside>0 ? ` + ${holidaysInside} праздничн., отпуск продлён)` : `)`);
 }
 vacDaysInput.addEventListener('input', updateVacRangeHint);
 document.getElementById('vacCancel').onclick = closeVacForm;
@@ -1130,10 +1152,11 @@ function renderDayDetails(dateISO){
   const label=parseISO(dateISO).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('day-title').textContent = `Записи · ${label}`;
 
+  let html;
   if(list.length===0){
-    box.innerHTML = `<div class="empty-note">Записей нет — добавьте смену, отгул или отпуск выше.</div>`;
+    html = `<div class="empty-note">Записей нет — добавьте смену, отгул или отпуск выше.</div>`;
   } else {
-    box.innerHTML = list.map(e=>{
+    html = list.map(e=>{
       const cls = e.kind==='work'?'work':(e.kind==='offHours'?'off':'vac');
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
       const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул':'Отпуск');
@@ -1146,12 +1169,17 @@ function renderDayDetails(dateISO){
       </div>`;
     }).join('');
   }
-  bindDeleteButtons();
 
   const y = Number(dateISO.slice(0,4)), m = Number(dateISO.slice(5,7))-1, d = Number(dateISO.slice(8,10));
   if(isHolidayDay(y,m,d)){
-    box.innerHTML += `<div class="notice warn"><span class="ic">🎉</span>Праздничный день — подработка в этот день оплачивается ×2. Если в этот день отпуск, день не входит в число оплачиваемых дней отпуска.</div>`;
+    html += `<div class="notice warn"><span class="ic">🎉</span>Праздничный день — подработка в этот день оплачивается ×2. Если в этот день отпуск, день не входит в число оплачиваемых дней отпуска.</div>`;
   }
+
+  // Собираем и вставляем HTML один раз: box.innerHTML += (было раньше) пересоздаёт
+  // все узлы внутри блока, из-за чего уже навешенные обработчики кнопок ✕ слетали
+  // именно в праздничные дни — ровно тот баг, который здесь чинится.
+  box.innerHTML = html;
+  bindDeleteButtons();
 }
 
 /* ================== HOLIDAYS ================== */
