@@ -1152,10 +1152,11 @@ function renderDayDetails(dateISO){
   const label=parseISO(dateISO).toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('day-title').textContent = `Записи · ${label}`;
 
+  let html;
   if(list.length===0){
-    box.innerHTML = `<div class="empty-note">Записей нет — добавьте смену, отгул или отпуск выше.</div>`;
+    html = `<div class="empty-note">Записей нет — добавьте смену, отгул или отпуск выше.</div>`;
   } else {
-    box.innerHTML = list.map(e=>{
+    html = list.map(e=>{
       const cls = e.kind==='work'?'work':(e.kind==='offHours'?'off':'vac');
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
       const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул':'Отпуск');
@@ -1168,12 +1169,17 @@ function renderDayDetails(dateISO){
       </div>`;
     }).join('');
   }
-  bindDeleteButtons();
 
   const y = Number(dateISO.slice(0,4)), m = Number(dateISO.slice(5,7))-1, d = Number(dateISO.slice(8,10));
   if(isHolidayDay(y,m,d)){
-    box.innerHTML += `<div class="notice warn"><span class="ic">🎉</span>Праздничный день — подработка в этот день оплачивается ×2. Если в этот день отпуск, день не входит в число оплачиваемых дней отпуска.</div>`;
+    html += `<div class="notice warn"><span class="ic">🎉</span>Праздничный день — подработка в этот день оплачивается ×2. Если в этот день отпуск, день не входит в число оплачиваемых дней отпуска.</div>`;
   }
+
+  // Собираем и вставляем HTML один раз: box.innerHTML += (было раньше) пересоздаёт
+  // все узлы внутри блока, из-за чего уже навешенные обработчики кнопок ✕ слетали
+  // именно в праздничные дни — ровно тот баг, который здесь чинится.
+  box.innerHTML = html;
+  bindDeleteButtons();
 }
 
 /* ================== HOLIDAYS ================== */
