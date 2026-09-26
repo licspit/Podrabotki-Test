@@ -1,5 +1,5 @@
 /* Service Worker: офлайн + автообновление */
-const SW_VERSION = "ui-v7";
+const SW_VERSION = "ui-v8";
 const STATIC_CACHE = `static-${SW_VERSION}`;
 const RUNTIME_CACHE = `runtime-${SW_VERSION}`;
 const PRECACHE = ["./","./index.html"];
