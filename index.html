@@ -459,8 +459,8 @@ body.no-scroll{overflow:hidden;height:100vh}
       <h2>Оклад и норма часов</h2>
       <div class="grid-2">
         <label class="field">
-          <span class="lbl">Базовый оклад до изменений, ₽ (на руки)</span>
-          <input id="salary" inputmode="numeric" placeholder="напр., 70000">
+          <span class="lbl">Оклад, действующий сегодня, ₽</span>
+          <input id="currentSalary" readonly>
         </label>
         <label class="field">
           <span class="lbl">Часов в смену</span>
@@ -471,6 +471,10 @@ body.no-scroll{overflow:hidden;height:100vh}
 
       <div class="salary-change-box">
         <div class="salary-change-title">Изменения оклада</div>
+        <label class="field" style="margin-bottom:10px">
+          <span class="lbl">Исходный оклад до первого изменения, ₽</span>
+          <input id="salary" inputmode="numeric" placeholder="например, 70000">
+        </label>
         <div class="salary-change-grid">
           <label class="field">
             <span class="lbl">Действует с даты</span>
@@ -1048,6 +1052,8 @@ document.getElementById('addSalaryChange').onclick = () => {
 };
 
 function renderSettingsHints(){
+  const todaySalary = salaryForDate(ymd(new Date()));
+  document.getElementById('currentSalary').value = todaySalary > 0 ? fmtMoney(todaySalary) : '';
   const wd = computeWorkdays(state.year, state.month);
   const hpd = Number(settings.hoursPerDay||8);
   const monthName = new Date(state.year,state.month,1).toLocaleDateString('ru-RU',{month:'long'});
