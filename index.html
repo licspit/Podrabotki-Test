@@ -163,6 +163,23 @@ body{
 .advance-period{margin:11px 0 9px}
 .advance-details[open] summary{background:var(--bg-soft)}
 
+.settings-details{padding:0;overflow:hidden}
+.settings-details summary{
+  list-style:none;cursor:pointer;padding:15px 16px;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;color:var(--ink);font-size:15px;font-weight:700;
+  user-select:none;
+}
+.settings-details summary::-webkit-details-marker{display:none}
+.settings-details[open] summary{background:var(--bg-soft)}
+.settings-details[open] .advance-chevron{transform:rotate(180deg)}
+.settings-summary-meta{display:flex;align-items:center;gap:9px;color:var(--ink-mut);font-size:12px;font-weight:600;text-align:right}
+.settings-details-body{padding:14px 16px 16px;border-top:1px solid var(--line)}
+.settings-details .salary-change-box{margin:0;padding:0;border:0}
+@media (max-width:420px){
+  .settings-details summary{align-items:flex-start}
+  .settings-summary-meta{flex-shrink:0;max-width:42%}
+}
+
 .row{display:flex;gap:10px;align-items:center}
 .row.wrap{flex-wrap:wrap}
 .grow{flex:1;min-width:0}
@@ -477,52 +494,6 @@ body.no-scroll{overflow:hidden;height:100vh}
         </label>
       </div>
       <div class="hint" id="workdaysHint" style="margin-top:10px"></div>
-
-      <div class="salary-change-box">
-        <div class="salary-change-title">Изменения оклада</div>
-        <label class="field" style="margin-bottom:10px">
-          <span class="lbl">Исходный оклад до первого изменения, ₽</span>
-          <input id="salary" inputmode="numeric" placeholder="например, 70000">
-        </label>
-        <div class="salary-change-grid">
-          <label class="field">
-            <span class="lbl">Действует с даты</span>
-            <div class="salary-date-shell">
-              <input id="salaryChangeDateDisplay" class="salary-date-display" readonly tabindex="-1" aria-hidden="true">
-              <span class="salary-date-icon" aria-hidden="true">📅</span>
-              <input id="salaryChangeDate" class="salary-date-native" type="date" aria-label="Дата начала действия нового оклада">
-            </div>
-          </label>
-          <label class="field">
-            <span class="lbl">Новый оклад, ₽</span>
-            <input id="salaryChangeAmount" inputmode="numeric" placeholder="например, 85000">
-          </label>
-          <button class="btn" id="addSalaryChange">Добавить</button>
-        </div>
-        <div class="hint">Можно запланировать повышение заранее. В месяце изменения расчёт делится по рабочим дням до и после указанной даты.</div>
-        <div class="salary-change-list" id="salaryChangesList"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Переработка в будний день</h2>
-      <div class="hint" style="margin:0 0 10px">Как считать часы подработки в будни сверх первых двух часов.</div>
-      <div class="ot-options" id="otOptions">
-        <label class="ot-option">
-          <input type="radio" name="overtimeMode" value="progressive">
-          <div class="ot-option-body">
-            <div class="ot-option-title">×1.5 / ×2.0</div>
-            <div class="ot-option-desc">первые 2 часа ×1.5, дальше ×2.0 — как сверхурочные по ТК РФ</div>
-          </div>
-        </label>
-        <label class="ot-option">
-          <input type="radio" name="overtimeMode" value="flat">
-          <div class="ot-option-body">
-            <div class="ot-option-title">×1.5 на все часы</div>
-            <div class="ot-option-desc">весь будний день подработки считается по единому коэффициенту ×1.5</div>
-          </div>
-        </label>
-      </div>
     </div>
 
     <div class="card">
@@ -533,6 +504,70 @@ body.no-scroll{overflow:hidden;height:100vh}
       </label>
       <div class="hint" id="avgDailyHint" style="margin-top:10px"></div>
     </div>
+
+    <details class="card settings-details" id="salaryChangesDetails">
+      <summary>
+        <span>Изменения оклада</span>
+        <span class="settings-summary-meta">
+          <span id="salaryChangesSummary">нет изменений</span>
+          <span class="advance-chevron" aria-hidden="true">⌄</span>
+        </span>
+      </summary>
+      <div class="settings-details-body">
+        <div class="salary-change-box">
+          <label class="field" style="margin-bottom:10px">
+            <span class="lbl">Исходный оклад до первого изменения, ₽</span>
+            <input id="salary" inputmode="numeric" placeholder="например, 70000">
+          </label>
+          <div class="salary-change-grid">
+            <label class="field">
+              <span class="lbl">Действует с даты</span>
+              <div class="salary-date-shell">
+                <input id="salaryChangeDateDisplay" class="salary-date-display" readonly tabindex="-1" aria-hidden="true">
+                <span class="salary-date-icon" aria-hidden="true">📅</span>
+                <input id="salaryChangeDate" class="salary-date-native" type="date" aria-label="Дата начала действия нового оклада">
+              </div>
+            </label>
+            <label class="field">
+              <span class="lbl">Новый оклад, ₽</span>
+              <input id="salaryChangeAmount" inputmode="numeric" placeholder="например, 85000">
+            </label>
+            <button class="btn" id="addSalaryChange">Добавить</button>
+          </div>
+          <div class="hint">Можно запланировать повышение заранее. В месяце изменения расчёт делится по рабочим дням до и после указанной даты.</div>
+          <div class="salary-change-list" id="salaryChangesList"></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="card settings-details" id="overtimeDetails">
+      <summary>
+        <span>Переработка в будний день</span>
+        <span class="settings-summary-meta">
+          <span id="overtimeSummary">×1.5 / ×2.0</span>
+          <span class="advance-chevron" aria-hidden="true">⌄</span>
+        </span>
+      </summary>
+      <div class="settings-details-body">
+        <div class="hint" style="margin:0 0 10px">Как считать часы подработки в будни сверх первых двух часов.</div>
+        <div class="ot-options" id="otOptions">
+          <label class="ot-option">
+            <input type="radio" name="overtimeMode" value="progressive">
+            <div class="ot-option-body">
+              <div class="ot-option-title">×1.5 / ×2.0</div>
+              <div class="ot-option-desc">первые 2 часа ×1.5, дальше ×2.0 — как сверхурочные по ТК РФ</div>
+            </div>
+          </label>
+          <label class="ot-option">
+            <input type="radio" name="overtimeMode" value="flat">
+            <div class="ot-option-body">
+              <div class="ot-option-title">×1.5 на все часы</div>
+              <div class="ot-option-desc">весь будний день подработки считается по единому коэффициенту ×1.5</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </details>
 
     <div class="row" style="margin-top:4px">
       <button class="btn primary block" id="saveSettings">Сохранить настройки</button>
@@ -1002,11 +1037,18 @@ function toast(msg){
 document.getElementById('salary').value = settings.salary ?? '';
 document.getElementById('hoursPerDay').value = settings.hoursPerDay;
 document.getElementById('avgDaily').value = settings.avgDaily ?? '';
+function updateOvertimeSummary(){
+  const selected = document.querySelector('input[name="overtimeMode"]:checked');
+  const mode = selected ? selected.value : (settings.overtimeMode || 'progressive');
+  document.getElementById('overtimeSummary').textContent = mode === 'flat' ? '×1.5 на все часы' : '×1.5 / ×2.0';
+}
 function syncOvertimeRadios(){
   document.querySelectorAll('input[name="overtimeMode"]').forEach(r=>{
     r.checked = (r.value === (settings.overtimeMode || 'progressive'));
   });
+  updateOvertimeSummary();
 }
+document.querySelectorAll('input[name="overtimeMode"]').forEach(r=>r.addEventListener('change', updateOvertimeSummary));
 syncOvertimeRadios();
 
 function formatSalaryChangeDate(iso){
@@ -1025,6 +1067,8 @@ syncSalaryChangeDateDisplay();
 function renderSalaryChanges(){
   normalizeSalaryChanges();
   const box = document.getElementById('salaryChangesList');
+  const count = settings.salaryChanges.length;
+  document.getElementById('salaryChangesSummary').textContent = count ? count + ' измен.' : 'нет изменений';
   if(settings.salaryChanges.length === 0){
     box.innerHTML = '<div class="hint">Изменений оклада пока нет.</div>';
     return;
