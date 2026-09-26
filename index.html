@@ -139,7 +139,7 @@ body{
 .salary-change-item .del{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--ink-faint);cursor:pointer}
 .salary-change-item .del:hover{color:var(--bad);background:var(--bad-soft)}
 @media (max-width:560px){
-  .salary-main-grid,.salary-change-grid{grid-template-columns:minmax(0,1fr)}
+  .grid-2.salary-main-grid,.salary-change-grid{grid-template-columns:minmax(0,1fr)}
   .salary-change-grid .btn{grid-column:1;width:100%}
 }
 
@@ -483,7 +483,7 @@ body.no-scroll{overflow:hidden;height:100vh}
         <div class="salary-change-grid">
           <label class="field">
             <span class="lbl">Действует с даты</span>
-            <input id="salaryChangeDate" type="date">
+            <input id="salaryChangeDate" type="text" inputmode="numeric" maxlength="10" placeholder="ДД.ММ.ГГГГ" autocomplete="off">
           </label>
           <label class="field">
             <span class="lbl">Новый оклад, ₽</span>
@@ -1000,7 +1000,27 @@ function syncOvertimeRadios(){
   });
 }
 syncOvertimeRadios();
-document.getElementById('salaryChangeDate').value = ymd(today);
+
+function formatSalaryChangeDate(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||'')) return '';
+  return iso.slice(8,10)+'.'+iso.slice(5,7)+'.'+iso.slice(0,4);
+}
+function parseSalaryChangeDate(value){
+  const match = String(value||'').trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if(!match) return null;
+  const day=Number(match[1]), month=Number(match[2]), year=Number(match[3]);
+  const d=new Date(year,month-1,day);
+  if(d.getFullYear()!==year || d.getMonth()!==month-1 || d.getDate()!==day) return null;
+  return year+'-'+pad2(month)+'-'+pad2(day);
+}
+const salaryChangeDateInput = document.getElementById('salaryChangeDate');
+salaryChangeDateInput.value = formatSalaryChangeDate(ymd(today));
+salaryChangeDateInput.addEventListener('input',()=>{
+  const digits=salaryChangeDateInput.value.replace(/\D/g,'').slice(0,8);
+  salaryChangeDateInput.value = digits.length<=2 ? digits
+    : digits.length<=4 ? digits.slice(0,2)+'.'+digits.slice(2)
+    : digits.slice(0,2)+'.'+digits.slice(2,4)+'.'+digits.slice(4);
+});
 
 function renderSalaryChanges(){
   normalizeSalaryChanges();
@@ -1032,11 +1052,13 @@ function renderSalaryChanges(){
 renderSalaryChanges();
 
 document.getElementById('addSalaryChange').onclick = () => {
-  const date = document.getElementById('salaryChangeDate').value;
+  const dateInput = document.getElementById('salaryChangeDate');
+  const date = parseSalaryChangeDate(dateInput.value);
   const raw = document.getElementById('salaryChangeAmount').value.trim().replace(/\s/g,'').replace(',','.');
   const salary = Number(raw);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
-    toast('Укажите дату изменения оклада');
+  if(!date){
+    toast('Укажите дату в формате ДД.ММ.ГГГГ');
+    dateInput.focus();
     return;
   }
   if(!Number.isFinite(salary) || salary <= 0){
@@ -1684,7 +1706,10 @@ maybeShowBackupReminder();
 
 /* PWA register */
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})
+      .then(reg=>reg.update()).catch(()=>{});
+  });
 }
 
 // Просим браузер не вычищать localStorage при нехватке места на устройстве —
