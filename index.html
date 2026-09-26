@@ -130,7 +130,8 @@ body{
 .salary-change-box{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .salary-change-title{font-size:13px;font-weight:700;margin-bottom:9px}
 .salary-change-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}
-.salary-change-grid>*{min-width:0}
+.salary-change-grid>*{min-width:0;max-width:100%}
+.salary-change-grid input{display:block;width:100%;min-width:0;max-width:100%}
 .salary-change-list{display:flex;flex-direction:column;gap:7px;margin-top:10px}
 .salary-change-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);background:var(--bg-soft);color:var(--ink);font-size:13px}
 .salary-change-item .date{color:var(--ink-mut)}
@@ -138,10 +139,9 @@ body{
 .salary-change-item .del{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--ink-faint);cursor:pointer}
 .salary-change-item .del:hover{color:var(--bad);background:var(--bad-soft)}
 @media (max-width:560px){
-  .salary-change-grid{grid-template-columns:minmax(0,1fr)}
+  .salary-main-grid,.salary-change-grid{grid-template-columns:minmax(0,1fr)}
   .salary-change-grid .btn{grid-column:1;width:100%}
 }
-@media (max-width:420px){.salary-main-grid{grid-template-columns:minmax(0,1fr)}}
 
 /* ---------- Сворачиваемый блок аванса ---------- */
 .advance-details{padding:0;overflow:hidden}
