@@ -126,6 +126,18 @@ body{
 .card h2{font-size:14px;font-weight:700;margin:0 0 12px;color:var(--ink)}
 .card h2 .mut{color:var(--ink-mut);font-weight:500}
 
+/* ---------- История оклада ---------- */
+.salary-change-box{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.salary-change-title{font-size:13px;font-weight:700;margin-bottom:9px}
+.salary-change-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.salary-change-list{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.salary-change-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);background:var(--bg-soft);color:var(--ink);font-size:13px}
+.salary-change-item .date{color:var(--ink-mut)}
+.salary-change-item .amount{font-weight:700;margin-left:auto;font-variant-numeric:tabular-nums}
+.salary-change-item .del{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--ink-faint);cursor:pointer}
+.salary-change-item .del:hover{color:var(--bad);background:var(--bad-soft)}
+@media (max-width:560px){.salary-change-grid{grid-template-columns:1fr 1fr}.salary-change-grid .btn{grid-column:1/-1}}
+
 /* ---------- Сворачиваемый блок аванса ---------- */
 .advance-details{padding:0;overflow:hidden}
 .advance-details summary{
@@ -447,7 +459,7 @@ body.no-scroll{overflow:hidden;height:100vh}
       <h2>Оклад и норма часов</h2>
       <div class="grid-2">
         <label class="field">
-          <span class="lbl">Оклад, ₽ (на руки)</span>
+          <span class="lbl">Базовый оклад до изменений, ₽ (на руки)</span>
           <input id="salary" inputmode="numeric" placeholder="напр., 70000">
         </label>
         <label class="field">
@@ -456,6 +468,23 @@ body.no-scroll{overflow:hidden;height:100vh}
         </label>
       </div>
       <div class="hint" id="workdaysHint" style="margin-top:10px"></div>
+
+      <div class="salary-change-box">
+        <div class="salary-change-title">Изменения оклада</div>
+        <div class="salary-change-grid">
+          <label class="field">
+            <span class="lbl">Действует с даты</span>
+            <input id="salaryChangeDate" type="date">
+          </label>
+          <label class="field">
+            <span class="lbl">Новый оклад, ₽</span>
+            <input id="salaryChangeAmount" inputmode="numeric" placeholder="например, 85000">
+          </label>
+          <button class="btn" id="addSalaryChange">Добавить</button>
+        </div>
+        <div class="hint">Можно запланировать повышение заранее. В месяце изменения расчёт делится по рабочим дням до и после указанной даты.</div>
+        <div class="salary-change-list" id="salaryChangesList"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -616,8 +645,22 @@ function daysSince(iso){ if(!iso) return Infinity; return Math.floor((Date.now()
 
 /* default settings — workdays больше не хранится отдельно: считается на лету для нужного месяца.
    overtimeMode: 'flat' = все часы в будний день ×1.5; 'progressive' = первые 2ч ×1.5, дальше ×2.0 */
-const defaultSettings = { salary:null, hoursPerDay:8, avgDaily:null, overtimeMode:'progressive' };
+const defaultSettings = { salary:null, hoursPerDay:8, avgDaily:null, overtimeMode:'progressive', salaryChanges:[] };
 const settings = Object.assign({}, defaultSettings, loadSettings());
+
+function normalizeSalaryChanges(){
+  const source = Array.isArray(settings.salaryChanges) ? settings.salaryChanges : [];
+  const byDate = new Map();
+  source.forEach(item=>{
+    const date = String((item && item.date)||'');
+    const salary = Number(item && item.salary);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(salary) && salary > 0){
+      byDate.set(date,{date:date,salary:salary});
+    }
+  });
+  settings.salaryChanges = Array.from(byDate.values()).sort((a,b)=>a.date.localeCompare(b.date));
+}
+normalizeSalaryChanges();
 
 const today = new Date();
 const state = {
