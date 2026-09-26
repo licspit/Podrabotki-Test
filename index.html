@@ -991,13 +991,72 @@ function syncOvertimeRadios(){
   });
 }
 syncOvertimeRadios();
+document.getElementById('salaryChangeDate').value = ymd(today);
+
+function renderSalaryChanges(){
+  normalizeSalaryChanges();
+  const box = document.getElementById('salaryChangesList');
+  if(settings.salaryChanges.length === 0){
+    box.innerHTML = '<div class="hint">Изменений оклада пока нет.</div>';
+    return;
+  }
+  box.innerHTML = settings.salaryChanges.map(change=>{
+    const dateLabel = parseISO(change.date).toLocaleDateString('ru-RU');
+    return '<div class="salary-change-item">' +
+      '<span class="date">с '+dateLabel+'</span>' +
+      '<span class="amount">'+fmtMoney(change.salary)+' ₽</span>' +
+      '<button class="del" data-salary-date="'+change.date+'" aria-label="Удалить изменение оклада">✕</button>' +
+      '</div>';
+  }).join('');
+  box.querySelectorAll('[data-salary-date]').forEach(btn=>{
+    btn.onclick=()=>{
+      settings.salaryChanges = settings.salaryChanges.filter(x=>x.date!==btn.dataset.salaryDate);
+      saveSettingsObj(settings);
+      renderSalaryChanges();
+      renderSettingsHints();
+      renderHero();
+      renderDayDetails(state.selectedDate);
+      toast('Изменение оклада удалено');
+    };
+  });
+}
+renderSalaryChanges();
+
+document.getElementById('addSalaryChange').onclick = () => {
+  const date = document.getElementById('salaryChangeDate').value;
+  const raw = document.getElementById('salaryChangeAmount').value.trim().replace(/\s/g,'').replace(',','.');
+  const salary = Number(raw);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+    toast('Укажите дату изменения оклада');
+    return;
+  }
+  if(!Number.isFinite(salary) || salary <= 0){
+    toast('Укажите новый оклад');
+    document.getElementById('salaryChangeAmount').focus();
+    return;
+  }
+  settings.salaryChanges = settings.salaryChanges.filter(x=>x.date!==date);
+  settings.salaryChanges.push({date:date,salary:salary});
+  normalizeSalaryChanges();
+  saveSettingsObj(settings);
+  document.getElementById('salaryChangeAmount').value = '';
+  renderSalaryChanges();
+  renderSettingsHints();
+  renderHero();
+  renderDayDetails(state.selectedDate);
+  toast('Новый оклад сохранён');
+};
 
 function renderSettingsHints(){
   const wd = computeWorkdays(state.year, state.month);
   const hpd = Number(settings.hoursPerDay||8);
   const monthName = new Date(state.year,state.month,1).toLocaleDateString('ru-RU',{month:'long'});
+  const selectedSalary = salaryForDate(state.selectedDate);
+  const selectedDateLabel = parseISO(state.selectedDate).toLocaleDateString('ru-RU');
   document.getElementById('workdaysHint').innerHTML =
-    `В ${monthName} рабочих дней: <b>${wd}</b> × ${hpd} ч = <b>${wd*hpd} ч</b> нормы. Считается автоматически по дням недели минус отметки на вкладке «Праздники».`;
+    'В '+monthName+' рабочих дней: <b>'+wd+'</b> × '+hpd+' ч = <b>'+(wd*hpd)+' ч</b> нормы. ' +
+    'Оклад на '+selectedDateLabel+': <b>'+fmtMoney(selectedSalary)+' ₽</b>. ' +
+    'Считается автоматически по дням недели минус отметки на вкладке «Праздники».';
 
   const meta = avgDailyMeta(state.year, state.month);
   const auto = autoAverageDailyFor(state.year, state.month);
@@ -1505,11 +1564,15 @@ document.getElementById('btnImport').onclick=()=>{
       if(data.holidays && typeof data.holidays==='object'){ saveHolidays(data.holidays); state.holidays = data.holidays; }
       if(data.advances && typeof data.advances==='object' && !Array.isArray(data.advances)) saveAdvances(data.advances);
       if(data.settings && typeof data.settings==='object'){
-        Object.assign(settings, defaultSettings, data.settings); saveSettingsObj(settings);
+        Object.assign(settings, defaultSettings, data.settings);
+        normalizeSalaryChanges();
+        saveSettingsObj(settings);
         document.getElementById('salary').value = settings.salary ?? '';
         document.getElementById('hoursPerDay').value = settings.hoursPerDay;
         document.getElementById('avgDaily').value = settings.avgDaily ?? '';
         syncOvertimeRadios();
+        renderSalaryChanges();
+        renderSettingsHints();
       }
       toast('Импорт выполнен');
       renderCalendar(state.year,state.month); renderDayDetails(state.selectedDate); renderHero();
