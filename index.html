@@ -132,6 +132,10 @@ body{
 .salary-change-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:10px;align-items:end}
 .salary-change-grid>*{min-width:0;max-width:100%}
 .salary-change-grid input{display:block;width:100%;min-width:0;max-width:100%}
+.salary-date-shell{position:relative;width:100%;height:42px;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg-soft)}
+.salary-date-display{height:100%;border:0!important;background:transparent!important;padding:0 46px 0 13px;pointer-events:none;color:var(--ink)}
+.salary-date-icon{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:17px;line-height:1;pointer-events:none}
+.salary-date-native{position:absolute!important;inset:0!important;z-index:2;width:100%!important;height:100%!important;min-width:0!important;max-width:100%!important;opacity:0;cursor:pointer}
 .salary-change-list{display:flex;flex-direction:column;gap:7px;margin-top:10px}
 .salary-change-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);background:var(--bg-soft);color:var(--ink);font-size:13px}
 .salary-change-item .date{color:var(--ink-mut)}
@@ -483,7 +487,11 @@ body.no-scroll{overflow:hidden;height:100vh}
         <div class="salary-change-grid">
           <label class="field">
             <span class="lbl">Действует с даты</span>
-            <input id="salaryChangeDate" type="text" inputmode="numeric" maxlength="10" placeholder="ДД.ММ.ГГГГ" autocomplete="off">
+            <div class="salary-date-shell">
+              <input id="salaryChangeDateDisplay" class="salary-date-display" readonly tabindex="-1" aria-hidden="true">
+              <span class="salary-date-icon" aria-hidden="true">📅</span>
+              <input id="salaryChangeDate" class="salary-date-native" type="date" aria-label="Дата начала действия нового оклада">
+            </div>
           </label>
           <label class="field">
             <span class="lbl">Новый оклад, ₽</span>
@@ -1005,23 +1013,15 @@ function formatSalaryChangeDate(iso){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||'')) return '';
   return iso.slice(8,10)+'.'+iso.slice(5,7)+'.'+iso.slice(0,4);
 }
-function parseSalaryChangeDate(value){
-  const match = String(value||'').trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if(!match) return null;
-  const day=Number(match[1]), month=Number(match[2]), year=Number(match[3]);
-  const d=new Date(year,month-1,day);
-  if(d.getFullYear()!==year || d.getMonth()!==month-1 || d.getDate()!==day) return null;
-  return year+'-'+pad2(month)+'-'+pad2(day);
-}
 const salaryChangeDateInput = document.getElementById('salaryChangeDate');
-salaryChangeDateInput.value = formatSalaryChangeDate(ymd(today));
-salaryChangeDateInput.addEventListener('input',()=>{
-  const digits=salaryChangeDateInput.value.replace(/\D/g,'').slice(0,8);
-  salaryChangeDateInput.value = digits.length<=2 ? digits
-    : digits.length<=4 ? digits.slice(0,2)+'.'+digits.slice(2)
-    : digits.slice(0,2)+'.'+digits.slice(2,4)+'.'+digits.slice(4);
-});
-
+const salaryChangeDateDisplay = document.getElementById('salaryChangeDateDisplay');
+function syncSalaryChangeDateDisplay(){
+  salaryChangeDateDisplay.value = formatSalaryChangeDate(salaryChangeDateInput.value);
+}
+salaryChangeDateInput.value = ymd(today);
+salaryChangeDateInput.addEventListener('change',syncSalaryChangeDateDisplay);
+salaryChangeDateInput.addEventListener('input',syncSalaryChangeDateDisplay);
+syncSalaryChangeDateDisplay();
 function renderSalaryChanges(){
   normalizeSalaryChanges();
   const box = document.getElementById('salaryChangesList');
@@ -1053,12 +1053,12 @@ renderSalaryChanges();
 
 document.getElementById('addSalaryChange').onclick = () => {
   const dateInput = document.getElementById('salaryChangeDate');
-  const date = parseSalaryChangeDate(dateInput.value);
+  const date = dateInput.value;
   const raw = document.getElementById('salaryChangeAmount').value.trim().replace(/\s/g,'').replace(',','.');
   const salary = Number(raw);
-  if(!date){
-    toast('Укажите дату в формате ДД.ММ.ГГГГ');
-    dateInput.focus();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+    toast('Выберите дату повышения');
+    try{ dateInput.showPicker ? dateInput.showPicker() : dateInput.click(); }catch(e){}
     return;
   }
   if(!Number.isFinite(salary) || salary <= 0){
