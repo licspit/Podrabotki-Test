@@ -770,52 +770,61 @@ function payForWorkEntry(entry, baseRate){
    Используется и Журналом, и Архивом — больше нет двух разных
    веток логики, которые могли давать разные цифры. */
 
-// почасовая ставка ИМЕННО для месяца (y,m), а не для текущего открытого
-function hourRateFor(y,m){
-  const wd = Math.max(1, computeWorkdays(y,m));
-  const hpd = Math.max(1, Number(settings.hoursPerDay||8));
-  const sal = Number(settings.salary||0);
-  return sal/(wd*hpd);
+// Оклад, действующий в конкретную дату. Базовый оклад применяется до
+// первого изменения; каждое последующее изменение действует с указанного дня.
+function salaryForDate(dateISO){
+  let salary = Number(settings.salary||0);
+  for(const change of settings.salaryChanges){
+    if(change.date <= dateISO) salary = Number(change.salary||0);
+    else break;
+  }
+  return salary;
 }
 
-// база оклада за месяц с учётом вычетов (отгулы, будние дни отпуска) —
-// общая для totalsForMonth() и monthAccruals(), чтобы обе функции всегда
-// считали одну и ту же величину одинаково, а не расходились между собой.
+function hourRateForDate(dateISO){
+  const y = Number(dateISO.slice(0,4));
+  const m = Number(dateISO.slice(5,7)) - 1;
+  const wd = Math.max(1, computeWorkdays(y,m));
+  const hpd = Math.max(1, Number(settings.hoursPerDay||8));
+  return salaryForDate(dateISO)/(wd*hpd);
+}
+
+// Для краткого показа ставки месяца используем ставку, действующую в его конце.
+function hourRateFor(y,m){
+  return hourRateForDate(ymStr(y,m)+'-'+pad2(daysInMonth(y,m)));
+}
+
+// База оклада начисляется по каждому рабочему дню. Благодаря этому месяц,
+// в котором оклад изменился, автоматически делится на старую и новую ставку.
 function monthBase(y,m){
   const ym = ymStr(y,m);
   const list = loadEntries().filter(e => e.date.slice(0,7) === ym);
-  const rate = hourRateFor(y,m);
-  const salary = Number(settings.salary||0);
-  const workdays = computeWorkdays(y,m);
-  const dayFromSalary = salary / Math.max(1, workdays);
+  const workdays = Math.max(1, computeWorkdays(y,m));
+  const vacationDates = new Set(list.filter(e=>e.kind==='vacation').map(e=>e.date));
 
-  let offH = 0, vacWeekdays = 0;
-  list.forEach(e=>{
-    if(e.kind === 'offHours') offH += Number(e.hours||0);
-    else if(e.kind === 'vacation'){
-      const d = Number(e.date.slice(8,10));
-      if(isWeekday(y,m,d) && !isHolidayDay(y,m,d)) vacWeekdays++;
-    }
-  });
-  return Math.max(0, salary - offH*rate - vacWeekdays*dayFromSalary);
+  let base = 0;
+  for(let d=1; d<=daysInMonth(y,m); d++){
+    if(!isWeekday(y,m,d) || isHolidayDay(y,m,d)) continue;
+    const iso = ym+'-'+pad2(d);
+    if(vacationDates.has(iso)) continue;
+    base += salaryForDate(iso) / workdays;
+  }
+
+  const offDeduction = list
+    .filter(e=>e.kind==='offHours')
+    .reduce((sum,e)=>sum + Number(e.hours||0) * hourRateForDate(e.date),0);
+  return Math.max(0, base - offDeduction);
 }
 
-// начисления за месяц (база с вычетами + оплата подработок) — по ставке
-// ЭТОГО месяца. Используется для среднего заработка (ст.139 ТК РФ) — период
-// самого отпуска в расчёт среднего не входит (п.5 Постановления №922),
-// поэтому отпускные (payVac) сюда намеренно не добавляются.
-// Раньше здесь брался оклад без вычета отгулов/отпуска того месяца, из-за
-// чего показанные отпускные могли быть выше фактически начисленных сумм.
+// Начисления за месяц для среднего заработка. Аванс и отпускные сюда не входят.
 function monthAccruals(y,m){
   const ym = ymStr(y,m);
   const list = loadEntries().filter(e => e.date.slice(0,7) === ym);
-  const rate = hourRateFor(y,m);
   const overtimePay = list
     .filter(e => e.kind === 'work')
-    .reduce((sum, e) => sum + payForWorkEntry(e, rate), 0);
+    .reduce((sum, e) => sum + payForWorkEntry(e, hourRateForDate(e.date)), 0);
   return monthBase(y,m) + overtimePay;
 }
-
 // есть ли у месяца реальные данные (хоть одна запись) — нужно, чтобы
 // корректно усреднять только по месяцам, где пользователь вёл учёт.
 function monthHasData(y,m){
@@ -839,7 +848,7 @@ function autoAverageDailyFor(y,m){
   if (count === 0){
     // нет истории вообще — используем оклад текущего месяца за один период
     // как приближение, чтобы не делить на ноль и не давать 0 ₽ отпускных.
-    return Number(settings.salary||0) / 29.3;
+    return salaryForDate(ymStr(y,m)+'-01') / 29.3;
   }
   return sum / (29.3 * count);
 }
@@ -876,6 +885,11 @@ function totalsForMonth(y,m){
 
   const workdays = computeWorkdays(y,m);
   const rate = hourRateFor(y,m);
+  const firstRate = hourRateForDate(ym+'-01');
+  const lastRate = hourRateForDate(ym+'-'+pad2(daysInMonth(y,m)));
+  const rateLabel = Math.abs(firstRate-lastRate) < 0.01
+    ? lastRate.toFixed(0)+' ₽/ч'
+    : firstRate.toFixed(0)+'–'+lastRate.toFixed(0)+' ₽/ч';
 
   const vacHolidayDays = vacDays.filter(d => isHolidayDay(y,m,d));
   const vacCalendarDays = vacDays.filter(d => !isHolidayDay(y,m,d)); // оплачиваемые дни отпуска
@@ -883,7 +897,10 @@ function totalsForMonth(y,m){
 
   const payWork = list
     .filter(e => e.kind === 'work')
-    .reduce((sum, e) => sum + payForWorkEntry(e, rate), 0);
+    .reduce((sum, e) => sum + payForWorkEntry(e, hourRateForDate(e.date)), 0);
+  const offDeduction = list
+    .filter(e => e.kind === 'offHours')
+    .reduce((sum, e) => sum + Number(e.hours||0) * hourRateForDate(e.date), 0);
 
   const avgD = avgDailyFor(y,m);
   const payVac = avgD * vacCalendarDays.length;
@@ -904,7 +921,7 @@ function totalsForMonth(y,m){
     vacHolidayDays: vacHolidayDays.length,
     avgDaily: avgD,
     avgDailyMeta: avgDailyMeta(y,m),
-    payWork, payVac, base, advance, totalBeforeAdvance, total, totalPayout
+    payWork, payVac, base, advance, offDeduction, rateLabel, totalBeforeAdvance, total, totalPayout
   };
 }
 
@@ -1227,9 +1244,9 @@ function renderHero(){
   document.getElementById('heroTotal').textContent = fmtMoney(t.total);
   const chips = [];
   chips.push(`<span class="pill"><b>${fmtMoney(t.base)} ₽</b> база</span>`);
-  chips.push(`<span class="pill"><b>${t.rate.toFixed(0)} ₽/ч</b> ставка за час</span>`);
+  chips.push(`<span class="pill"><b>${t.rateLabel}</b> ставка за час</span>`);
   if(t.payWork>0) chips.push(`<span class="pill work"><b>+${fmtMoney(t.payWork)} ₽</b> подработки</span>`);
-  if(t.offH>0) chips.push(`<span class="pill bad"><b>−${fmtMoney(t.offH*t.rate)} ₽</b> отгул</span>`);
+  if(t.offH>0) chips.push(`<span class="pill bad"><b>−${fmtMoney(t.offDeduction)} ₽</b> отгул</span>`);
   if(t.advance>0) chips.push(`<span class="pill bad"><b>−${fmtMoney(t.advance)} ₽</b> аванс</span>`);
   document.getElementById('heroBreakdown').innerHTML = chips.join('');
 
@@ -1544,7 +1561,7 @@ function renderArchive(){
   let html = `<h3 style="margin:14px 0 8px;font-size:15px">${head}</h3>`;
   html += `<div class="archive-totals" style="display:flex;flex-wrap:wrap;gap:8px">
     <span class="pill"><b>${fmtMoney(t.base)} ₽</b> база</span>
-    <span class="pill">${t.rate.toFixed(0)} ₽/ч ставка</span>
+    <span class="pill">${t.rateLabel} ставка</span>
     <span class="pill work"><b>${fmtMoney(t.payWork)} ₽</b> подработки (${fmtHours(t.workH)} ч)</span>
     <span class="pill bad">${fmtHours(t.offH)} ч отгул</span>
     ${t.advance>0 ? `<span class="pill bad"><b>−${fmtMoney(t.advance)} ₽</b> аванс</span>` : ''}
