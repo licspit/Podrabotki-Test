@@ -291,7 +291,11 @@ input[readonly]{color:var(--ink-mut)}
 .entry .ic.off{background:var(--bad-soft)}
 .entry .ic.vac{background:var(--good-soft)}
 .entry .title{font-weight:600;font-size:13.5px}
-.entry .hours{text-align:right;font-weight:700;font-size:13.5px;white-space:nowrap}
+.entry .hours{
+  display:flex;flex-direction:column;align-items:flex-end;text-align:right;
+  font-weight:700;font-size:13.5px;line-height:1.2;white-space:nowrap;
+}
+.entry .earned{margin-top:3px;color:var(--accent);font-size:12px;font-weight:700}
 .entry .del{width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink-faint);cursor:pointer;flex:0 0 auto}
 .entry .del:hover{color:var(--bad);border-color:var(--bad-soft)}
 .empty-note{color:var(--ink-faint);font-size:13.5px;padding:14px 4px;text-align:center}
@@ -1437,10 +1441,13 @@ function renderDayDetails(dateISO){
       const icon = e.kind==='work'?'🛠️':(e.kind==='offHours'?'⛔':'🏖️');
       const title= e.kind==='work'?'Подработка':(e.kind==='offHours'?'Отгул':'Отпуск');
       const hrs = e.kind==='vacation'?'—':`${fmtHours(e.hours)} ч`;
+      const earned = e.kind==='work'
+        ? `<span class="earned">${fmtMoney(payForWorkEntry(e, hourRateForDate(e.date)))} ₽</span>`
+        : '';
       return `<div class="entry">
         <div class="ic ${cls}">${icon}</div>
         <div class="title">${title}</div>
-        <div class="hours">${hrs}</div>
+        <div class="hours"><span>${hrs}</span>${earned}</div>
         <button class="del" data-del-id="${e.id}" aria-label="Удалить">✕</button>
       </div>`;
     }).join('');
